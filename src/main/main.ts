@@ -17,6 +17,7 @@ import { resolveHtmlPath } from './util';
 import { sequelize } from '../../database/models/index';
 import { User } from '../../database/models/user';
 import bcrypt from "bcrypt";
+import validator from 'validator';
 import { password } from '../../database/config/config';
 
 const saltRounds = 10;
@@ -52,62 +53,83 @@ ipcMain.on('ipc-example', async (event, arg) => {
 
 ipcMain.on('signup', async (event, arg) => {
   const { name, username, email, password } = arg.data;
-  const response = {user: null, msg: "", error: null}
   console.log(arg.data);
-  // check if already created
-  const user = await User.findOne({ where: { username: username } });
-  response.user = user;
-
-  if (user === null) {
-    bcrypt.hash(password, saltRounds, async function(err, hash) {
-      if (err){
-        response.error = err;
-        response.msg = "Error saving the User. Please sign up later.";
-        event.reply('signup', response);
-      }else{
-        const user = await User.create({name, username, email, password: hash});
-        response.user = user;
-        response.msg = "New user created!"
-        console.log(user instanceof User); // true
-        console.log('New user created');
-        event.reply('signup', response);
-
-      }
-    });
-  } else {
-    response.error = true;
-    response.msg = "User already exists";
-    console.log('User already exists');
-    event.reply('signup', response);
+  const response = { user: null, msg: "", error: null }
+  let wrong_input = ''
+  for (const user_input in arg.data) {
+    wrong_input += (validator.isEmpty(arg.data[user_input]) ? `Provide a ${user_input}. \n` : ``)
   }
+  wrong_input += (validator.isEmail(email) ? `` : `Provide a valid email`)
+  if (wrong_input.length) {
+    response.error = true;
+    response.msg = wrong_input;
+    event.reply('signup', response);
+  } else {
+    const user = await User.findOne({ where: { username: username } });
+    response.user = user;
+
+    if (user === null) {
+      bcrypt.hash(password, saltRounds, async function (err, hash) {
+        if (err) {
+          response.error = err;
+          response.msg = "Error saving the User. Please sign up later.";
+          event.reply('signup', response);
+        } else {
+          const user = await User.create({ name, username, email, password: hash });
+          response.user = user;
+          response.msg = "New user created!"
+          console.log(user instanceof User); // true
+          console.log('New user created');
+          event.reply('signup', response);
+
+        }
+      });
+    } else {
+      response.error = true;
+      response.msg = "User already exists";
+      console.log('User already exists');
+      event.reply('signup', response);
+    }
+  }
+
 });
 
 ipcMain.on('signin', async (event, arg) => {
   const { username, password } = arg.data;
   console.log(arg.data);
-  const response = {user: null, msg: "", error: null}
+  const response = { user: null, msg: "", error: null }
   // check if already created
-  const user = await User.findOne({ where: { username: username } });
-  if (user === null) {
+  let wrong_input = ''
+  for (const user_input in arg.data) {
+    wrong_input += (validator.isEmpty(arg.data[user_input]) ? `Provide a ${user_input}. \n` : ``)
+  }
+  if (wrong_input.length) {
     response.error = true;
-    response.msg = 'User not found';
-    console.log('User not found');
+    response.msg = wrong_input;
     event.reply('signin', response);
   } else {
-    bcrypt.compare(password, user.password, function(err, isSame) {
-        if (isSame){
+    const user = await User.findOne({ where: { username: username } });
+    if (user === null) {
+      response.error = true;
+      response.msg = 'User not found';
+      console.log('User not found');
+      event.reply('signin', response);
+    } else {
+      bcrypt.compare(password, user.password, function (err, isSame) {
+        if (isSame) {
           response.user = user;
           response.msg = 'Sign In Successfull.'
           console.log(user instanceof User); // true
           console.log('User found');
           event.reply('signin', response);
-        }else{
+        } else {
           response.error = true;
           response.msg = 'Incorrect password. Try again.';
           console.log('Incorrect password. Try again.');
           event.reply('signin', response);
         }
-    });
+      });
+    }
   }
 });
 
