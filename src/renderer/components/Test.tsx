@@ -26,6 +26,7 @@ export default function Test() {
   const [addCompositPressed, setAddCompositPressed] = React.useState(false);
   const [renameCompositPressed, setRenameCompositPressed] = React.useState(false);
   const [currentComponent, setCurrentComponent] = React.useState(null);
+  const [renameComponentPressed, setRenameComponentPressed] = React.useState(false);
   const [addComponentPressed, setAddComponentPressed] = React.useState(false);
   const [previousCompositInput, setPreviousCompositInput] = React.useState('');
   const [componentInput, setComponentInput] = React.useState('');
@@ -106,42 +107,32 @@ export default function Test() {
 
   const handleAddComposit = () => {
     setAddCompositPressed(true);
+    setRenameCompositPressed(false);
+    setCurrentComposit(null);
+    setCompositInput('');
   }
 
   const handleRenameComposit = (composit) => {
     setRenameCompositPressed(true);
+    setAddCompositPressed(false);
     setCurrentComposit(composit);
     setCompositInput(composit.name);
   }
 
-  const handleRenameCompositSubmit = async (composit, newCompositName) => {
-    const response = await window.electron.testRenderer.invokeRenameComposit({ data: { composit: { ...composit, name: newCompositName } } });
+  const handleRenameCompositSubmit = async (compositToRename, newCompositName) => {
+    const response = await window.electron.testRenderer.invokeRenameComposit({ data: { composit: { ...compositToRename, name: newCompositName } } });
     console.log('renameComposit, response: ', response);
     if (response.isCompositUpdated) {
       const updatedComposits = composits.map((compositObj) => {
-        console.log('renameComposit, composit?.name == newCompositName: ', (composit?.name == newCompositName));
-        console.log('renameComposit, composit?.name: ', composit?.name);
-        console.log('renameComposit, newCompositName: ', newCompositName);
-
-        if (compositObj?.id == composit?.id) {
+        if (compositObj?.id == compositToRename?.id) {
           compositObj.name = newCompositName;
         }
         return compositObj;
       });
       setComposits(updatedComposits);
     }
-    const updatedComposits = composits.map((composit) => {
-      console.log('renameComposit, composit?.name == newCompositName: ', (composit?.name == newCompositName));
-      console.log('renameComposit, composit?.name: ', composit?.name);
-      console.log('renameComposit, newCompositName: ', newCompositName);
-
-      if (composit?.id == response.updatedComposit?.id) {
-        composit.name = response.updatedComposit.name;
-        console.log('renameComposit, composit: ', composit);
-      }
-      return composit;
-    });
-    setComposits(updatedComposits);
+    // else give some message that composit wasn't updated
+    setCompositInput('');
     setRenameCompositPressed(false);
   }
 
@@ -157,10 +148,12 @@ export default function Test() {
     // setPreviousComponentInput(event.target.value)
     setComponentInput('');
     setAddComponentPressed(false);
+    setRenameComponentPressed(false);
   };
   const handleComponentInputCancel = (event) => {
     setComponentInput('');
     setAddComponentPressed(false);
+    setRenameComponentPressed(false);
   };
 
   // old way getting the input through form
@@ -195,6 +188,8 @@ export default function Test() {
     console.log('handleAddComponent called, currentComposit: ', currentComposit);
     console.log('handleAddComponent called, addComponentPressed: ', addComponentPressed);
     setCurrentComposit(currentCompositObj);
+    setRenameComponentPressed(false);
+    setComponentInput('');
     setAddComponentPressed(true);
   };
 
@@ -243,8 +238,8 @@ export default function Test() {
     console.log('deleteComponentRecurive, componentName: ', componentName);
 
     if (componentObj.subcomponents?.length > 0) {
-      componentObj.subcomponents = componentObj.subcomponents.filter((component) => {
-        return deleteComponentRecurive(component, componentName);
+      componentObj.subcomponents = componentObj.subcomponents.filter((subComponent) => {
+        return deleteComponentRecurive(subComponent, componentName);
       })
 
     }
@@ -276,8 +271,54 @@ export default function Test() {
   }
 
 
+  const handleRenameComponent = (component) => {
+    console.log("handleRenameComponent called, component: ", component)
+    setAddComponentPressed(false);
+    setRenameComponentPressed(true);
+    setCurrentComponent(component);
+    setComponentInput(component.name);
+  }
 
+  const handleRenameComponentSubmit = async (composit, componentToRename, newComponentName) => {
+    const response = await window.electron.testRenderer.invokeRenameComponent({ data: { component: { ...componentToRename, name: newComponentName } } });
+    console.log('handleRenameComponentSubmit, response: ', response);
+    if (response.isComponentUpdated) {
+      const updatedComposits = composits.map((compositObj) => {
 
+        
+        if (compositObj?.name == composit?.name) {
+          compositObj.components = composit.components?.map((componentObj) => {
+            return renameComponentRecurive(componentObj, componentToRename, newComponentName)
+          });
+          console.log('handleRenameComponentSubmit, composit: ', composit);
+        }
+        return compositObj;
+      });
+      setComposits(updatedComposits);
+    }// else give some message that composit wasn't updated
+
+    setComponentInput('');
+    setRenameComponentPressed(false);
+  }
+
+  const renameComponentRecurive = (componentObj, componentToRename, componentName) => {
+    console.log('renameComponentRecurive, componentObj: ', componentObj);
+    console.log('renameComponentRecurive, componentName: ', componentName);
+
+    if (componentObj.subcomponents?.length > 0) {
+      componentObj.subcomponents = componentObj.subcomponents.map((subComponent) => {
+        return renameComponentRecurive(subComponent, componentToRename, componentName);
+      })
+    }
+    console.log('componentObj: ', componentObj);
+
+    if (componentObj.id == componentToRename.id) {
+      componentObj.name = componentName
+      console.log('renameComponentRecurive, componentObj.id == componentToRename.i');
+    }
+
+    return componentObj;
+  }
 
 
 
@@ -451,6 +492,9 @@ export default function Test() {
             <Button sx={{ mt: 1, mb: 1 }} variant="contained" onClick={handleAddComposit}>Add Composit</Button>
         }
 
+        <Typography component="h2" variant="h5">
+          Composits and Components
+        </Typography>
         {composits && composits.map((composit) => (
           <>
             <Box
@@ -484,7 +528,22 @@ export default function Test() {
                 //     </IconButton>
                 //   </ListItem>
                 // </List>
-                <ListOfComponents composit={composit} component={component} deleteComponent={deleteComponent} handleSubComponentSubmit={handleSubComponentSubmit} currentComponent={currentComponent} setCurrentComponent={setCurrentComponent} />
+                <ListOfComponents
+                  composit={composit} 
+                  component={component}
+                  deleteComponentCb={deleteComponent}
+                  handleSubComponentSubmitCb={handleSubComponentSubmit}
+                  currentComponent={currentComponent}
+                  setCurrentComponent={setCurrentComponent} 
+                  componentInput={componentInput}
+                  handleComponentInputChange={handleComponentInputChange}
+                  handleComponentInputCancel={handleComponentInputCancel}
+                  renameComponentPressed={renameComponentPressed}
+                  handleRenameComponentCb={handleRenameComponent}
+                  handleRenameComponentSubmitCb={handleRenameComponentSubmit}
+
+                  
+                />
               ))}
 
               {addComponentPressed && (currentComposit?.name == composit?.name) && (
@@ -498,6 +557,8 @@ export default function Test() {
       </Box>
     </Container>
   )
+
+
 }
 
 
@@ -553,11 +614,11 @@ function EntityBox({ entity, handleAddButton, handleDeleteButton, handleRenameBu
     </Stack>
 
   )
-
 }
 
-function ListOfComponents({ composit, component, deleteComponent, handleSubComponentSubmit, currentComponent, setCurrentComponent, parentComponent = null }) {
-  console.log("ListOfComponents, deleteComponent: ", deleteComponent)
+function ListOfComponents({ composit, component, deleteComponentCb, renameComponentPressed, handleSubComponentSubmitCb, handleRenameComponentCb, currentComponent, setCurrentComponent, componentInput, handleComponentInputChange, handleComponentInputCancel, handleRenameComponentSubmitCb, parentComponent = null }) {
+  console.log("ListOfComponents, renameComponentPressed: ", renameComponentPressed);
+  console.log("ListOfComponents, currentComponent: ", currentComponent);
   const [subComponentInput, setSubComponentInput] = React.useState('');
   const [addSubComponentPressed, setAddSubComponentPressed] = React.useState(false);
 
@@ -575,7 +636,7 @@ function ListOfComponents({ composit, component, deleteComponent, handleSubCompo
   };
 
   const handleSubComponentInputSubmit = (composit, component, subComponentInput) => {
-    handleSubComponentSubmit(composit, component, subComponentInput);
+    handleSubComponentSubmitCb(composit, component, subComponentInput);
     setSubComponentInput('');
     setAddSubComponentPressed(false);
   };
@@ -591,24 +652,49 @@ function ListOfComponents({ composit, component, deleteComponent, handleSubCompo
         <ListItem
           key={component.id}
         >
-          <ListItemText primary={`Component: ${component?.name}, id:  ${component?.id}`} />
+      
+
+            {((currentComponent?.name == component.name) && renameComponentPressed) ?
+              <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={() => handleRenameComponentSubmitCb(composit, currentComponent, componentInput)} />
+              :
+              // <EntityBox entity={component} handleAddButton={handleAddSubComponent} handleDeleteButton={deleteComponent} handleRenameButton={handleRenameComponent} />
+         <>
+              <ListItemText primary={`Component: ${component?.name}, id:  ${component?.id}`} />
           <IconButton
             onClick={() => handleAddSubComponent(component)}
             aria-label="check"
           >
             <AddCircleIcon />
           </IconButton>
-          <IconButton aria-label="delete" onClick={() => deleteComponent(composit?.name, component?.name, parentComponent?.name)}>
+          <IconButton aria-label="delete" onClick={() => deleteComponentCb(composit?.name, component?.name, parentComponent?.name)}>
             <DeleteIcon />
           </IconButton>
-          <IconButton aria-label="rename" onClick={() => deleteComponent(composit?.name, component?.name, parentComponent?.name)}>
-            <DeleteIcon />
+          
+          <IconButton aria-label="rename" onClick={() => handleRenameComponentCb(component)}>
+            <DriveFileRenameOutlineOutlinedIcon />
           </IconButton>
+          </>
+            }
+        
         </ListItem>
         {component.subcomponents && component.subcomponents?.map((subcomponent) => (
           <>
             <ListItem>
-              <ListOfComponents composit={composit} component={subcomponent} parentComponent={component} deleteComponent={deleteComponent} handleSubComponentSubmit={handleSubComponentSubmit} currentComponent={currentComponent} setCurrentComponent={setCurrentComponent} />
+              <ListOfComponents
+                composit={composit}
+                component={subcomponent}
+                parentComponent={component}
+                deleteComponentCb={deleteComponentCb}
+                handleSubComponentSubmitCb={handleSubComponentSubmitCb}
+                currentComponent={currentComponent}
+                setCurrentComponent={setCurrentComponent}
+                componentInput={componentInput}
+                handleComponentInputChange={handleComponentInputChange}
+                handleComponentInputCancel={handleComponentInputCancel}
+                renameComponentPressed={renameComponentPressed}
+                handleRenameComponentCb={handleRenameComponentCb}
+                handleRenameComponentSubmitCb={handleRenameComponentSubmitCb}
+              />
             </ListItem>
 
           </>
