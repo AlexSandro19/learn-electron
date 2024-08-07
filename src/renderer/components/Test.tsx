@@ -12,27 +12,23 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ListSubheader from '@mui/material/ListSubheader';
 import { Button, Input, Stack, TextField } from '@mui/material';
-import Switch from '@mui/material/Switch';
-import WifiIcon from '@mui/icons-material/Wifi';
 import IconButton from '@mui/material/IconButton';
-import BluetoothIcon from '@mui/icons-material/Bluetooth';
 import DeleteIcon from '@mui/icons-material/Delete';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
+import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 
 export default function Test() {
   const [composits, setComposits] = React.useState([]);
   const [compositInput, setCompositInput] = React.useState('');
-  const [currentComposit, setCurrentComposit] = React.useState('');
-  const [currentComponent, setCurrentComponent] = React.useState('');
+  const [currentComposit, setCurrentComposit] = React.useState(null);
+  const [addCompositPressed, setAddCompositPressed] = React.useState(false);
+  const [renameCompositPressed, setRenameCompositPressed] = React.useState(false);
+  const [currentComponent, setCurrentComponent] = React.useState(null);
   const [addComponentPressed, setAddComponentPressed] = React.useState(false);
-  const [addSubComponentPressed, setAddSubComponentPressed] = React.useState(false);
   const [previousCompositInput, setPreviousCompositInput] = React.useState('');
   const [componentInput, setComponentInput] = React.useState('');
-  const [subComponentInput, setSubComponentInput] = React.useState('');
   const [previousComponentInput, setPreviousComponentInput] = React.useState('');
 
   // The old way through send.ipcRenderer/on.ipcMain
@@ -69,6 +65,7 @@ export default function Test() {
     const response = await window.electron.testRenderer.invokeAddComposit({ data: { composit: compositInput } });
     console.log('handleCompositSubmit, response: ', response);
     setComposits([...composits, response.composit]);
+    setAddCompositPressed(false);
   };
 
 
@@ -86,8 +83,70 @@ export default function Test() {
     setCompositInput('');
   };
   const handleCompositInputCancel = (event) => {
+    setAddCompositPressed(false);
+    setRenameCompositPressed(false);
     setCompositInput('');
   };
+
+  const getComposits = async () => {
+    const response = await window.electron.testRenderer.invokeGetComposits();
+    console.log('getComposits, response: ', response);
+    setComposits(response.composits);
+  };
+
+  const deleteComposit = async (name) => {
+    const response = await window.electron.testRenderer.invokeDeleteComposit({ data: { name } });
+    console.log('deleteComposit, response: ', response);
+    if (response.isCompositDeleted) {
+      const updatedComposits = composits.filter((composit) => composit?.name != name);
+      setComposits(updatedComposits);
+    }
+    // else print the error message
+  }
+
+  const handleAddComposit = () => {
+    setAddCompositPressed(true);
+  }
+
+  const handleRenameComposit = (composit) => {
+    setRenameCompositPressed(true);
+    setCurrentComposit(composit);
+    setCompositInput(composit.name);
+  }
+
+  const handleRenameCompositSubmit = async (composit, newCompositName) => {
+    const response = await window.electron.testRenderer.invokeRenameComposit({ data: { composit: { ...composit, name: newCompositName } } });
+    console.log('renameComposit, response: ', response);
+    if (response.isCompositUpdated) {
+      const updatedComposits = composits.map((compositObj) => {
+        console.log('renameComposit, composit?.name == newCompositName: ', (composit?.name == newCompositName));
+        console.log('renameComposit, composit?.name: ', composit?.name);
+        console.log('renameComposit, newCompositName: ', newCompositName);
+
+        if (compositObj?.id == composit?.id) {
+          compositObj.name = newCompositName;
+        }
+        return compositObj;
+      });
+      setComposits(updatedComposits);
+    }
+    const updatedComposits = composits.map((composit) => {
+      console.log('renameComposit, composit?.name == newCompositName: ', (composit?.name == newCompositName));
+      console.log('renameComposit, composit?.name: ', composit?.name);
+      console.log('renameComposit, newCompositName: ', newCompositName);
+
+      if (composit?.id == response.updatedComposit?.id) {
+        composit.name = response.updatedComposit.name;
+        console.log('renameComposit, composit: ', composit);
+      }
+      return composit;
+    });
+    setComposits(updatedComposits);
+    setRenameCompositPressed(false);
+  }
+
+
+
 
   const handleComponentInputChange = (event) => {
     setComponentInput(event.target.value);
@@ -102,21 +161,6 @@ export default function Test() {
   const handleComponentInputCancel = (event) => {
     setComponentInput('');
     setAddComponentPressed(false);
-  };
-
-  const handleSubComponentInputChange = (event) => {
-    console.log('handleSubComponentInputChange, value: ', event.target.value);
-    setSubComponentInput(event.target.value);
-  };
-
-  const handleSubComponentInputSubmit = (composit, component, subComponentInput) => {
-    handleSubComponentSubmit(composit, component, subComponentInput);
-    setSubComponentInput('');
-    setAddSubComponentPressed(false);
-  };
-  const handleSubComponentInputCancel = (event) => {
-    setSubComponentInput('');
-    setAddSubComponentPressed(false);
   };
 
   // old way getting the input through form
@@ -134,10 +178,10 @@ export default function Test() {
   const handleComponentSubmit = async () => {
     console.log('handleComponentSubmit, componentInput: ', componentInput);
     // console.log('handleComponentSubmit, previousCompositInput: ', previousCompositInput);
-    const response = await window.electron.testRenderer.invokeAddComponent({ data: { component: componentInput, composit: currentComposit } });
+    const response = await window.electron.testRenderer.invokeAddComponent({ data: { component: componentInput, composit: currentComposit.name } });
     // console.log('handleComponentSubmit, response: ', response);
     const compositsUpdated = composits.map((composit) => {
-      if (composit.name == currentComposit) {
+      if (composit.name == currentComposit.name) {
         composit.components?.push(response.component)
       }
       return composit;
@@ -146,71 +190,11 @@ export default function Test() {
     setComposits(compositsUpdated);
   };
 
-  const handleSubComponentSubmit = async (selectedComposit, selectedComponent, subComponentInput) => {
-    console.log('handleSubComponentSubmit, subComponentInput: ', subComponentInput);
-    // console.log('handleSubComponentSubmit, previousCompositInput: ', previousCompositInput);
-    const response = await window.electron.testRenderer.invokeAddSubComponent({ data: { subComponent: subComponentInput, component: selectedComponent.name, composit: selectedComposit.name } });
-    console.log('handleSubComponentSubmit, response: ', response);
-    const compositsUpdated = composits.map((compositObj) => {
-      console.log('handleSubComponentSubmit, compositObj: ', compositObj);
-      
-      if (compositObj.id == selectedComposit.id) {
-        compositObj.components = compositObj.components?.map((componentObj) => {
-         return updateComponentWithNewSubcomponent(componentObj, selectedComponent, response.subComponent)
-        })
-
-      }
-      return compositObj;
-    })
-    console.log('handleComponentSubmit, compositsUpdated', compositsUpdated)
-    // const compositsUpdated = composits.map((composit) => {
-    //   if (composit.name == currentComposit) {
-    //     composit.components = composit.components.map(component => {
-    //       if (component.name == componentInput){
-    //         component.subComponents.push(response.subComponent)
-    //       }
-    //     });
-    //   }
-    //   return composit;
-    // })
-    // console.log('handleSubComponentSubmit, compositsUpdated: ', compositsUpdated);
-    setComposits(compositsUpdated);
-  };
-
-  const updateComponentWithNewSubcomponent = (componentObj, selectedComponent, receivedSubComponent) => {
-    console.log('handleSubComponentSubmit, componentObj: ', componentObj);
-    if (componentObj.id == selectedComponent.id) {
-      componentObj.subcomponents ??= []; // Nullish coalescing assignment
-      componentObj.subcomponents?.push(receivedSubComponent);
-    }
-    
-    if (componentObj.subcomponents?.length > 0){
-      componentObj.subcomponents.map((component) => {
-        updateComponentWithNewSubcomponent(component, selectedComponent, receivedSubComponent);
-      })
-    }
-    console.log('handleSubComponentSubmit, componentObj after if{}: ', componentObj);
-    return componentObj;
-  }
-
-  const getComposits = async () => {
-    const response = await window.electron.testRenderer.invokeGetComposits();
-    console.log('getComposits, response: ', response);
-    setComposits(response.composits);
-  };
-
-  const deleteComposit = async (name) => {
-    const response = await window.electron.testRenderer.invokeDeleteComposit({ data: { name } });
-    console.log('deleteComposit, response: ', response);
-    const updatedComposits = composits.filter((composit) => composit?.name != name);
-    setComposits(updatedComposits);
-  }
-
-  const handleAddComponent = async (currentCompositName) => {
-    console.log('handleAddComponent called, currentCompositName: ', currentCompositName);
+  const handleAddComponent = async (currentCompositObj) => {
+    console.log('handleAddComponent called, currentCompositName: ', currentCompositObj);
     console.log('handleAddComponent called, currentComposit: ', currentComposit);
     console.log('handleAddComponent called, addComponentPressed: ', addComponentPressed);
-    setCurrentComposit(currentCompositName);
+    setCurrentComposit(currentCompositObj);
     setAddComponentPressed(true);
   };
 
@@ -245,7 +229,7 @@ export default function Test() {
   //   }else {
   //     return componentObj;
   //   }
-    
+
   //   if (componentObj.name == componentName) {
   //     console.log('deleteComponentRecurive, componentObj == componentName');
   //     return false;
@@ -258,11 +242,11 @@ export default function Test() {
     console.log('deleteComponentRecurive, componentObj: ', componentObj);
     console.log('deleteComponentRecurive, componentName: ', componentName);
 
-    if (componentObj.subcomponents?.length > 0){
+    if (componentObj.subcomponents?.length > 0) {
       componentObj.subcomponents = componentObj.subcomponents.filter((component) => {
         return deleteComponentRecurive(component, componentName);
       })
-      
+
     }
     console.log('componentObj: ', componentObj);
 
@@ -270,78 +254,63 @@ export default function Test() {
       console.log('deleteComponentRecurive, componentObj == componentName');
       return false;
     }
-    
+
     // console.log('deleteComponentRecurive, componentObj: ', componentObj);
     return componentObj;
   }
 
-  const handleAddSubComponent = async (currentComponentName) => {
-    console.log('handleAddSubComponent called, currentComponentName: ', currentComponentName);
-    console.log('handleAddSubComponent called, addSubComponentPressed: ', addSubComponentPressed);
-    setCurrentComponent(currentComponentName);
-    setAddSubComponentPressed(true);
-  };
+  const updateComponentWithNewSubcomponent = (componentObj, selectedComponent, receivedSubComponent) => {
+    console.log('updateComponentWithNewSubcomponent, componentObj: ', componentObj);
+    if (componentObj.id == selectedComponent.id) {
+      componentObj.subcomponents ??= []; // Nullish coalescing assignment
+      componentObj.subcomponents?.push(receivedSubComponent);
+    }
 
-  const ListOfSubComponents = ({ composit, component, parentComponent = null }) => {
-    console.log('ListOfSubComponents render');
-    return (
-      <>
-        <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
-          <ListItem
-            key={component.id}
-          >
-            <ListItemText primary={`Component: ${component?.name}, id:  ${component?.id}`} />
-            <IconButton
-              onClick={() => handleAddSubComponent(component?.name)}
-              aria-label="check"
-            >
-              <AddCircleIcon />
-            </IconButton>
-            <IconButton aria-label="delete" onClick={() => deleteComponent(composit?.name, component?.name, parentComponent?.name)}>
-              <DeleteIcon />
-            </IconButton>
-          </ListItem>
-          {component.subcomponents && component.subcomponents?.map((subcomponent) => (
-            <>
-              <ListItem>
-                <ListOfSubComponents composit={composit} component={subcomponent} parentComponent={component} />
-              </ListItem>
-
-            </>
-          ))}
-          {addSubComponentPressed && (currentComponent == component?.name) && (
-             <>
-             <Stack direction="row" alignItems="center" gap={1}>
-               <TextField
-                 required
-                 fullWidth
-                 id="new-subcomponent"
-                 label="SubComponent"
-                 name="subcomponent"
-                 autoComplete="subcomponent"
-                 autoFocus
-                 value={subComponentInput}
-                 onChange={handleSubComponentInputChange}
-               />
-               <IconButton
-                 onClick={() => handleSubComponentInputSubmit(composit, component, subComponentInput)}
-                 sx={{ mt: 2, mb: 2 }}
-               >
-                 <CheckCircleIcon />
-               </IconButton>
-               <IconButton
-                 onClick={handleSubComponentInputCancel}
-                 sx={{ mt: 2, mb: 2 }}
-               >
-                 <CancelIcon />
-               </IconButton>
-             </Stack>
-       </>
-          )}
-        </List>
-
-      </>)
+    if (componentObj.subcomponents?.length > 0) {
+      componentObj.subcomponents.map((component) => {
+        updateComponentWithNewSubcomponent(component, selectedComponent, receivedSubComponent);
+      })
+    }
+    console.log('handleSubComponentSubmit, componentObj after if{}: ', componentObj);
+    return componentObj;
   }
+
+
+
+
+
+
+
+  const handleSubComponentSubmit = async (selectedComposit, selectedComponent, subComponentInput) => {
+    console.log('handleSubComponentSubmit, subComponentInput: ', subComponentInput);
+    // console.log('handleSubComponentSubmit, previousCompositInput: ', previousCompositInput);
+    const response = await window.electron.testRenderer.invokeAddSubComponent({ data: { subComponent: subComponentInput, component: selectedComponent.name, composit: selectedComposit.name } });
+    console.log('handleSubComponentSubmit, response: ', response);
+    const compositsUpdated = composits.map((compositObj) => {
+      console.log('handleSubComponentSubmit, compositObj: ', compositObj);
+
+      if (compositObj.id == selectedComposit.id) {
+        compositObj.components = compositObj.components?.map((componentObj) => {
+          return updateComponentWithNewSubcomponent(componentObj, selectedComponent, response.subComponent)
+        })
+
+      }
+      return compositObj;
+    })
+    console.log('handleComponentSubmit, compositsUpdated', compositsUpdated)
+    // const compositsUpdated = composits.map((composit) => {
+    //   if (composit.name == currentComposit) {
+    //     composit.components = composit.components.map(component => {
+    //       if (component.name == componentInput){
+    //         component.subComponents.push(response.subComponent)
+    //       }
+    //     });
+    //   }
+    //   return composit;
+    // })
+    // console.log('handleSubComponentSubmit, compositsUpdated: ', compositsUpdated);
+    setComposits(compositsUpdated);
+  };
 
   // const SubComponentInput = ({input}) => {
   //   console.log('SubComponentInput render');
@@ -398,7 +367,7 @@ export default function Test() {
   //                   <CancelIcon />
   //                 </IconButton>
   //               </Stack>
-            
+
   //     </>)
   // }
 
@@ -451,7 +420,7 @@ export default function Test() {
         <Typography component="h1" variant="h5">
           First Page
         </Typography>
-        <Button variant="contained" onClick={getComposits}>Sync Composits</Button>
+        <Button sx={{ mt: 1, mb: 1 }} variant="contained" onClick={getComposits}>Sync Composits</Button>
         {/* <Box component='form' onSubmit={handleComponentSubmit} noValidate sx={{ mt: 1 }}>
           <TextField
             required
@@ -475,30 +444,12 @@ export default function Test() {
             <CancelIcon />
           </IconButton>
         </Box> */}
-        <Stack direction="row" alignItems="center" gap={1}>
-          <TextField
-            required
-            fullWidth
-            id="new-composit"
-            label="Composit"
-            name="composit"
-            autoComplete="composit"
-            value={compositInput}
-            onChange={handleCompositInputChange}
-          />
-          <IconButton
-            onClick={handleCompositInputSubmit}
-            sx={{ mt: 2, mb: 2 }}
-          >
-            <CheckCircleIcon />
-          </IconButton>
-          <IconButton
-            onClick={handleCompositInputCancel}
-            sx={{ mt: 2, mb: 2 }}
-          >
-            <CancelIcon />
-          </IconButton>
-        </Stack>
+        {
+          addCompositPressed ?
+            <InputBox textFieldId={"new-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={handleCompositInputSubmit} />
+            :
+            <Button sx={{ mt: 1, mb: 1 }} variant="contained" onClick={handleAddComposit}>Add Composit</Button>
+        }
 
         {composits && composits.map((composit) => (
           <>
@@ -509,20 +460,12 @@ export default function Test() {
                 alignItems: 'center',
               }}
             >
-              <Stack direction="row" alignItems="center" gap={1}>
-                <Typography component="h1" variant="h5">
-                  {composit?.name}
-                </Typography>
-                <IconButton
-                  onClick={() => handleAddComponent(composit?.name)}
-                  sx={{ mt: 2, mb: 2 }}
-                >
-                  <AddCircleIcon />
-                </IconButton>
-                <IconButton aria-label="delete" onClick={() => deleteComposit(composit?.name)}>
-                  <DeleteIcon />
-                </IconButton>
-              </Stack>
+              {((currentComposit?.name == composit.name) && renameCompositPressed) ?
+                <InputBox textFieldId={"rename-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={() => handleRenameCompositSubmit(currentComposit, compositInput)} />
+                :
+                <EntityBox entity={composit} handleAddButton={handleAddComponent} handleDeleteButton={deleteComposit} handleRenameButton={handleRenameComposit} />
+
+              }
               {composit?.components && composit?.components.map((component) => (
                 // <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
                 //   <ListItem
@@ -541,35 +484,13 @@ export default function Test() {
                 //     </IconButton>
                 //   </ListItem>
                 // </List>
-
-                <ListOfSubComponents composit={composit} component={component} />
+                <ListOfComponents composit={composit} component={component} deleteComponent={deleteComponent} handleSubComponentSubmit={handleSubComponentSubmit} currentComponent={currentComponent} setCurrentComponent={setCurrentComponent} />
               ))}
 
-              {addComponentPressed && (currentComposit == composit?.name) && (
-                <Stack direction="row" alignItems="center" gap={1}>
-                  <TextField
-                    required
-                    fullWidth
-                    id="new-component"
-                    label="Component"
-                    name="component"
-                    autoComplete="component"
-                    value={componentInput}
-                    onChange={handleComponentInputChange}
-                  />
-                  <IconButton
-                    onClick={handleComponentInputSubmit}
-                    sx={{ mt: 2, mb: 2 }}
-                  >
-                    <CheckCircleIcon />
-                  </IconButton>
-                  <IconButton
-                    onClick={handleComponentInputCancel}
-                    sx={{ mt: 2, mb: 2 }}
-                  >
-                    <CancelIcon />
-                  </IconButton>
-                </Stack>
+              {addComponentPressed && (currentComposit?.name == composit?.name) && (
+                <InputBox textFieldId={"new-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleComponentInputSubmit} />
+
+
               )}
             </Box>
           </>
@@ -580,3 +501,124 @@ export default function Test() {
 }
 
 
+function InputBox({ input, textFieldId, textFieldLabel, textFieldName, handleInputChange, handleInputCancel, handleInputSubmit }) {
+  return (
+    <>
+      <Stack direction="row" alignItems="center" gap={1}>
+        <TextField
+          required
+          fullWidth
+          id={textFieldId}
+          label={textFieldLabel}
+          name={textFieldName}
+          autoComplete={textFieldName}
+          value={input}
+          onChange={handleInputChange}
+        />
+        <IconButton
+          onClick={handleInputSubmit}
+          sx={{ mt: 2, mb: 2 }}
+        >
+          <CheckCircleIcon />
+        </IconButton>
+        <IconButton
+          onClick={handleInputCancel}
+          sx={{ mt: 2, mb: 2 }}
+        >
+          <CancelIcon />
+        </IconButton>
+      </Stack>
+    </>
+  )
+}
+
+function EntityBox({ entity, handleAddButton, handleDeleteButton, handleRenameButton }) {
+  return (
+    <Stack direction="row" alignItems="center" gap={1}>
+      <Typography component="h1" variant="h5">
+        {entity?.name}
+      </Typography>
+      <IconButton
+        onClick={() => handleAddButton(entity)}
+        sx={{ mt: 2, mb: 2 }}
+      >
+        <AddCircleIcon />
+      </IconButton>
+      <IconButton aria-label="delete" onClick={() => handleDeleteButton(entity?.name)}>
+        <DeleteIcon />
+      </IconButton>
+      <IconButton aria-label="rename" onClick={() => handleRenameButton(entity)}>
+        <DriveFileRenameOutlineOutlinedIcon />
+      </IconButton>
+    </Stack>
+
+  )
+
+}
+
+function ListOfComponents({ composit, component, deleteComponent, handleSubComponentSubmit, currentComponent, setCurrentComponent, parentComponent = null }) {
+  console.log("ListOfComponents, deleteComponent: ", deleteComponent)
+  const [subComponentInput, setSubComponentInput] = React.useState('');
+  const [addSubComponentPressed, setAddSubComponentPressed] = React.useState(false);
+
+
+  const handleAddSubComponent = async (currentComponent) => {
+    console.log('handleAddSubComponent called, currentComponent: ', currentComponent);
+    console.log('handleAddSubComponent called, addSubComponentPressed: ', addSubComponentPressed);
+    setCurrentComponent(currentComponent);
+    setAddSubComponentPressed(true);
+  };
+
+  const handleSubComponentInputChange = (event) => {
+    console.log('handleSubComponentInputChange, value: ', event.target.value);
+    setSubComponentInput(event.target.value);
+  };
+
+  const handleSubComponentInputSubmit = (composit, component, subComponentInput) => {
+    handleSubComponentSubmit(composit, component, subComponentInput);
+    setSubComponentInput('');
+    setAddSubComponentPressed(false);
+  };
+  const handleSubComponentInputCancel = (event) => {
+    setSubComponentInput('');
+    setAddSubComponentPressed(false);
+  };
+
+  console.log('ListOfSubComponents render');
+  return (
+    <>
+      <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
+        <ListItem
+          key={component.id}
+        >
+          <ListItemText primary={`Component: ${component?.name}, id:  ${component?.id}`} />
+          <IconButton
+            onClick={() => handleAddSubComponent(component)}
+            aria-label="check"
+          >
+            <AddCircleIcon />
+          </IconButton>
+          <IconButton aria-label="delete" onClick={() => deleteComponent(composit?.name, component?.name, parentComponent?.name)}>
+            <DeleteIcon />
+          </IconButton>
+          <IconButton aria-label="rename" onClick={() => deleteComponent(composit?.name, component?.name, parentComponent?.name)}>
+            <DeleteIcon />
+          </IconButton>
+        </ListItem>
+        {component.subcomponents && component.subcomponents?.map((subcomponent) => (
+          <>
+            <ListItem>
+              <ListOfComponents composit={composit} component={subcomponent} parentComponent={component} deleteComponent={deleteComponent} handleSubComponentSubmit={handleSubComponentSubmit} currentComponent={currentComponent} setCurrentComponent={setCurrentComponent} />
+            </ListItem>
+
+          </>
+        ))}
+        {addSubComponentPressed && (currentComponent?.name == component?.name) && (
+          <>
+            <InputBox textFieldId={'new-subComponent'} textFieldLabel={"SubComponent"} textFieldName={"subcomponent"} input={subComponentInput} handleInputChange={handleSubComponentInputChange} handleInputCancel={handleSubComponentInputCancel} handleInputSubmit={() => handleSubComponentInputSubmit(composit, component, subComponentInput)} />
+          </>
+        )}
+      </List>
+
+    </>)
+}
