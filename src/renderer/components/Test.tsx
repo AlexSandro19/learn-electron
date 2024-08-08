@@ -529,7 +529,7 @@ export default function Test() {
                 <ListOfComponents
                   composit={composit}
                   component={component}
-                  deleteComponentCb={() => deleteComponent(composit, component)}
+                  deleteComponentCb={deleteComponent}
                   handleSubComponentSubmitCb={handleSubComponentSubmit}
                   currentComponent={currentComponent}
                   setCurrentComponent={setCurrentComponent}
@@ -662,7 +662,7 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
               >
                 <AddCircleIcon />
               </IconButton>
-              <IconButton aria-label="delete" onClick={deleteComponentCb}>
+              <IconButton aria-label="delete" onClick={() => deleteComponentCb(composit, component)}>
                 <DeleteIcon />
               </IconButton>
 
