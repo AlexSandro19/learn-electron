@@ -37,11 +37,11 @@ export default function SignIn() {
     const formData = new FormData(event.currentTarget);
     const data = Object.fromEntries(formData.entries());
     console.log(data);
-    window.electron.ipcRenderer.sendMessage('signin', { data });
+    window.electron.authRenderer.sendSignin({ data });
   };
 
   React.useEffect(() => {
-    window.electron.ipcRenderer.on('signin', (response) => {
+    window.electron.authRenderer.onSignin((response) => {
       setSigninResponse(response);
       console.log(`response from server: ${response}`);
     });

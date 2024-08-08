@@ -38,18 +38,18 @@ export default function SignUp() {
     const data = Object.fromEntries(formData.entries());
     console.log(data);
     // window.electron.ipcRenderer.sendMessage('ipc-example', { data });
-    window.electron.ipcRenderer.sendMessage('signup', { data });
+    window.electron.authRenderer.sendSignup({ data });
   };
 
 
   React.useEffect(() => {
-    window.electron.ipcRenderer.on('ipc-example', (response) => {
+  window.electron.ipcRenderer.on('ipc-example', (response) => {
       console.log(`response from server: ${response}`);
     });
   }, []);
 
   React.useEffect(() => {
-    window.electron.ipcRenderer.on('signup', (response) => {
+    window.electron.authRenderer.onSignup((response) => {
       setSignupResponse(response);
       console.log(`response from server: ${response}`);
     });
