@@ -70,6 +70,13 @@ export default function Navbar(props: Props) {
               </ListItemButton>
             </ListItem>
           </Link>
+          <Link to="/test" className="site-title">
+            <ListItem key={"Test"} disablePadding>
+              <ListItemButton sx={{ textAlign: 'center' }}>
+                <ListItemText primary={"Test"} />
+              </ListItemButton>
+            </ListItem>
+          </Link>
           {/* <Link to="/signin">
             SignIn
           </Link>
@@ -126,7 +133,11 @@ export default function Navbar(props: Props) {
                 Sign Up 
               </Button>
             </Link>
-        
+            <Link to="/test">
+            <Button key={"Test"} sx={{ color: '#fff' }}>
+                Test
+              </Button>
+            </Link>
           </Box>
         </Toolbar>
       </AppBar>

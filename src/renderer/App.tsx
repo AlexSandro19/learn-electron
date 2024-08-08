@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import Home from './components/Home';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import Test from './components/Test';
 
 
 function Hello() {
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/test" element={<Test />} />
       </Routes>
     </Router>
     </div>
