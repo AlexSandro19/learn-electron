@@ -28,9 +28,7 @@ export default function Test() {
   const [currentComponent, setCurrentComponent] = React.useState(null);
   const [renameComponentPressed, setRenameComponentPressed] = React.useState(false);
   const [addComponentPressed, setAddComponentPressed] = React.useState(false);
-  const [previousCompositInput, setPreviousCompositInput] = React.useState('');
   const [componentInput, setComponentInput] = React.useState('');
-  const [previousComponentInput, setPreviousComponentInput] = React.useState('');
 
   // The old way through send.ipcRenderer/on.ipcMain
   // const handleCompositSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -63,13 +61,11 @@ export default function Test() {
 
   // The new way through invoke.ipcRenderer/handle.ipcMain (async) and getting input data through state
   const handleCompositSubmit = async () => {
-    const response = await window.electron.testRenderer.invokeAddComposit({ data: { composit: compositInput } });
+    const response = await window.electron.testRenderer.invokeAddComposit({ data: { compositName: compositInput } });
     console.log('handleCompositSubmit, response: ', response);
     setComposits([...composits, response.composit]);
     setAddCompositPressed(false);
   };
-
-
 
   const handleCompositInputChange = (event) => {
     setCompositInput(event.target.value);
@@ -77,7 +73,6 @@ export default function Test() {
   };
   const handleCompositInputSubmit = (event) => {
     handleCompositSubmit();
-    setPreviousCompositInput(compositInput);
     console.log('handleCompositInputSubmit, value: ', compositInput);
     // console.log('handleCompositInputSubmit, previous: ', previousCompositInput);
     console.log('handleCompositInputSubmit, state: ', compositInput);
@@ -95,11 +90,11 @@ export default function Test() {
     setComposits(response.composits);
   };
 
-  const deleteComposit = async (name) => {
-    const response = await window.electron.testRenderer.invokeDeleteComposit({ data: { name } });
+  const deleteComposit = async (compositToDelete) => {
+    const response = await window.electron.testRenderer.invokeDeleteComposit({ data: { compositId: compositToDelete?.id } });
     console.log('deleteComposit, response: ', response);
     if (response.isCompositDeleted) {
-      const updatedComposits = composits.filter((composit) => composit?.name != name);
+      const updatedComposits = composits.filter((composit) => composit?.id != compositToDelete?.id);
       setComposits(updatedComposits);
     }
     // else print the error message
@@ -120,7 +115,7 @@ export default function Test() {
   }
 
   const handleRenameCompositSubmit = async (compositToRename, newCompositName) => {
-    const response = await window.electron.testRenderer.invokeRenameComposit({ data: { composit: { ...compositToRename, name: newCompositName } } });
+    const response = await window.electron.testRenderer.invokeRenameComposit({ data: { compositId: compositToRename?.id, newCompositName } });
     console.log('renameComposit, response: ', response);
     if (response.isCompositUpdated) {
       const updatedComposits = composits.map((compositObj) => {
@@ -171,10 +166,10 @@ export default function Test() {
   const handleComponentSubmit = async () => {
     console.log('handleComponentSubmit, componentInput: ', componentInput);
     // console.log('handleComponentSubmit, previousCompositInput: ', previousCompositInput);
-    const response = await window.electron.testRenderer.invokeAddComponent({ data: { component: componentInput, composit: currentComposit.name } });
+    const response = await window.electron.testRenderer.invokeAddComponent({ data: { componentName: componentInput, compositId: currentComposit?.id } });
     // console.log('handleComponentSubmit, response: ', response);
     const compositsUpdated = composits.map((composit) => {
-      if (composit.name == currentComposit.name) {
+      if (composit?.id == currentComposit?.id) {
         composit.components?.push(response.component)
       }
       return composit;
@@ -193,19 +188,19 @@ export default function Test() {
     setAddComponentPressed(true);
   };
 
-  const deleteComponent = async (compositName, componentName, parentComponentName = null) => {
-    const response = await window.electron.testRenderer.invokeDeleteComponent({ data: { composit: compositName, component: componentName, parentComponent: parentComponentName } });
+  const deleteComponent = async (composit, component) => {
+    const response = await window.electron.testRenderer.invokeDeleteComponent({ data: { componentId: component?.id } });
     // console.log('deleteComponent, response: ', response);
-    const updatedComposits = composits.map((composit) => {
-      if (composit.name == compositName) {
+    const updatedComposits = composits.map((compositObj) => {
+      if (compositObj?.id == composit?.id) {
         // console.log('deleteComponent, composit: ', composit)
         // composit.components = composit.components?.filter((component) => component?.name != componentName);
-        composit.components = composit.components?.filter((component) => {
-          return deleteComponentRecurive(component, componentName)
+        compositObj.components = compositObj.components?.filter((componentObj) => {
+          return deleteComponentRecurive(componentObj, component?.id)
         });
-        console.log('deleteComponent, composit: ', composit);
+        console.log('deleteComponent, composit: ', compositObj);
       }
-      return composit;
+      return compositObj;
     })
     console.log('deleteComponent, updatedComposits: ', updatedComposits);
     setComposits(updatedComposits);
@@ -233,19 +228,19 @@ export default function Test() {
   //   }
   // }
 
-  const deleteComponentRecurive = (componentObj, componentName) => {
+  const deleteComponentRecurive = (componentObj, componentId) => {
     console.log('deleteComponentRecurive, componentObj: ', componentObj);
-    console.log('deleteComponentRecurive, componentName: ', componentName);
+    console.log('deleteComponentRecurive, componentName: ', componentId);
 
     if (componentObj.subcomponents?.length > 0) {
       componentObj.subcomponents = componentObj.subcomponents.filter((subComponent) => {
-        return deleteComponentRecurive(subComponent, componentName);
+        return deleteComponentRecurive(subComponent, componentId);
       })
 
     }
     console.log('componentObj: ', componentObj);
 
-    if (componentObj.name == componentName) {
+    if (componentObj?.id == componentId) {
       console.log('deleteComponentRecurive, componentObj == componentName');
       return false;
     }
@@ -253,24 +248,7 @@ export default function Test() {
     // console.log('deleteComponentRecurive, componentObj: ', componentObj);
     return componentObj;
   }
-
-  const updateComponentWithNewSubcomponent = (componentObj, selectedComponent, receivedSubComponent) => {
-    console.log('updateComponentWithNewSubcomponent, componentObj: ', componentObj);
-    if (componentObj.id == selectedComponent.id) {
-      componentObj.subcomponents ??= []; // Nullish coalescing assignment
-      componentObj.subcomponents?.push(receivedSubComponent);
-    }
-
-    if (componentObj.subcomponents?.length > 0) {
-      componentObj.subcomponents.map((component) => {
-        updateComponentWithNewSubcomponent(component, selectedComponent, receivedSubComponent);
-      })
-    }
-    console.log('handleSubComponentSubmit, componentObj after if{}: ', componentObj);
-    return componentObj;
-  }
-
-
+//  --------------------------------------------
   const handleRenameComponent = (component) => {
     console.log("handleRenameComponent called, component: ", component)
     setAddComponentPressed(false);
@@ -280,12 +258,12 @@ export default function Test() {
   }
 
   const handleRenameComponentSubmit = async (composit, componentToRename, newComponentName) => {
-    const response = await window.electron.testRenderer.invokeRenameComponent({ data: { component: { ...componentToRename, name: newComponentName } } });
+    const response = await window.electron.testRenderer.invokeRenameComponent({ data: { componentId: componentToRename?.id, newComponentName } });
     console.log('handleRenameComponentSubmit, response: ', response);
     if (response.isComponentUpdated) {
       const updatedComposits = composits.map((compositObj) => {
 
-        
+
         if (compositObj?.name == composit?.name) {
           compositObj.components = composit.components?.map((componentObj) => {
             return renameComponentRecurive(componentObj, componentToRename, newComponentName)
@@ -301,19 +279,19 @@ export default function Test() {
     setRenameComponentPressed(false);
   }
 
-  const renameComponentRecurive = (componentObj, componentToRename, componentName) => {
+  const renameComponentRecurive = (componentObj, componentToRename, newComponentName) => {
     console.log('renameComponentRecurive, componentObj: ', componentObj);
-    console.log('renameComponentRecurive, componentName: ', componentName);
+    console.log('renameComponentRecurive, componentName: ', newComponentName);
 
     if (componentObj.subcomponents?.length > 0) {
       componentObj.subcomponents = componentObj.subcomponents.map((subComponent) => {
-        return renameComponentRecurive(subComponent, componentToRename, componentName);
+        return renameComponentRecurive(subComponent, componentToRename, newComponentName);
       })
     }
     console.log('componentObj: ', componentObj);
 
     if (componentObj.id == componentToRename.id) {
-      componentObj.name = componentName
+      componentObj.name = newComponentName
       console.log('renameComponentRecurive, componentObj.id == componentToRename.i');
     }
 
@@ -325,7 +303,7 @@ export default function Test() {
   const handleSubComponentSubmit = async (selectedComposit, selectedComponent, subComponentInput) => {
     console.log('handleSubComponentSubmit, subComponentInput: ', subComponentInput);
     // console.log('handleSubComponentSubmit, previousCompositInput: ', previousCompositInput);
-    const response = await window.electron.testRenderer.invokeAddSubComponent({ data: { subComponent: subComponentInput, component: selectedComponent.name, composit: selectedComposit.name } });
+    const response = await window.electron.testRenderer.invokeAddSubComponent({ data: { subComponentName: subComponentInput, componentId: selectedComponent?.id, compositId: selectedComposit?.id } });
     console.log('handleSubComponentSubmit, response: ', response);
     const compositsUpdated = composits.map((compositObj) => {
       console.log('handleSubComponentSubmit, compositObj: ', compositObj);
@@ -352,6 +330,22 @@ export default function Test() {
     // console.log('handleSubComponentSubmit, compositsUpdated: ', compositsUpdated);
     setComposits(compositsUpdated);
   };
+
+  const updateComponentWithNewSubcomponent = (componentObj, selectedComponent, receivedSubComponent) => {
+    console.log('updateComponentWithNewSubcomponent, componentObj: ', componentObj);
+    if (componentObj.id == selectedComponent.id) {
+      componentObj.subcomponents ??= []; // Nullish coalescing assignment
+      componentObj.subcomponents?.push(receivedSubComponent);
+    }
+
+    if (componentObj.subcomponents?.length > 0) {
+      componentObj.subcomponents.map((component) => {
+        updateComponentWithNewSubcomponent(component, selectedComponent, receivedSubComponent);
+      })
+    }
+    console.log('handleSubComponentSubmit, componentObj after if{}: ', componentObj);
+    return componentObj;
+  }
 
   // const SubComponentInput = ({input}) => {
   //   console.log('SubComponentInput render');
@@ -507,8 +501,12 @@ export default function Test() {
               {((currentComposit?.name == composit.name) && renameCompositPressed) ?
                 <InputBox textFieldId={"rename-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={() => handleRenameCompositSubmit(currentComposit, compositInput)} />
                 :
-                <EntityBox entity={composit} handleAddButton={handleAddComponent} handleDeleteButton={deleteComposit} handleRenameButton={handleRenameComposit} />
-
+                <Stack direction="row" alignItems="center" gap={1}>
+                      <Typography component="h1" variant="h5">
+                        {composit?.name}
+                      </Typography>
+                      <EntityButtons handleAddButton={() => handleAddComponent(composit)} handleDeleteButton={() => deleteComposit(composit)} handleRenameButton={() => handleRenameComposit(composit)} />
+                </Stack>
               }
               {composit?.components && composit?.components.map((component) => (
                 // <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
@@ -529,20 +527,20 @@ export default function Test() {
                 //   </ListItem>
                 // </List>
                 <ListOfComponents
-                  composit={composit} 
+                  composit={composit}
                   component={component}
-                  deleteComponentCb={deleteComponent}
+                  deleteComponentCb={() => deleteComponent(composit, component)}
                   handleSubComponentSubmitCb={handleSubComponentSubmit}
                   currentComponent={currentComponent}
-                  setCurrentComponent={setCurrentComponent} 
+                  setCurrentComponent={setCurrentComponent}
                   componentInput={componentInput}
                   handleComponentInputChange={handleComponentInputChange}
                   handleComponentInputCancel={handleComponentInputCancel}
                   renameComponentPressed={renameComponentPressed}
                   handleRenameComponentCb={handleRenameComponent}
-                  handleRenameComponentSubmitCb={handleRenameComponentSubmit}
+                  handleRenameComponentSubmitCb={() => handleRenameComponentSubmit(composit, currentComponent, componentInput)}
 
-                  
+
                 />
               ))}
 
@@ -593,40 +591,37 @@ function InputBox({ input, textFieldId, textFieldLabel, textFieldName, handleInp
   )
 }
 
-function EntityBox({ entity, handleAddButton, handleDeleteButton, handleRenameButton }) {
+function EntityButtons({ handleAddButton, handleDeleteButton, handleRenameButton }) {
   return (
-    <Stack direction="row" alignItems="center" gap={1}>
-      <Typography component="h1" variant="h5">
-        {entity?.name}
-      </Typography>
+      <>
       <IconButton
-        onClick={() => handleAddButton(entity)}
+        // onClick={() => handleAddButton(entity)}
+        onClick={handleAddButton}
         sx={{ mt: 2, mb: 2 }}
       >
         <AddCircleIcon />
       </IconButton>
-      <IconButton aria-label="delete" onClick={() => handleDeleteButton(entity?.name)}>
+      <IconButton aria-label="delete" onClick={handleDeleteButton}>
         <DeleteIcon />
       </IconButton>
-      <IconButton aria-label="rename" onClick={() => handleRenameButton(entity)}>
+      <IconButton aria-label="rename" onClick={handleRenameButton}>
         <DriveFileRenameOutlineOutlinedIcon />
       </IconButton>
-    </Stack>
-
+      </>
   )
 }
 
-function ListOfComponents({ composit, component, deleteComponentCb, renameComponentPressed, handleSubComponentSubmitCb, handleRenameComponentCb, currentComponent, setCurrentComponent, componentInput, handleComponentInputChange, handleComponentInputCancel, handleRenameComponentSubmitCb, parentComponent = null }) {
+function ListOfComponents({ composit, component, deleteComponentCb, renameComponentPressed, handleSubComponentSubmitCb, handleRenameComponentCb, currentComponent, setCurrentComponent, componentInput, handleComponentInputChange, handleComponentInputCancel, handleRenameComponentSubmitCb }) {
   console.log("ListOfComponents, renameComponentPressed: ", renameComponentPressed);
   console.log("ListOfComponents, currentComponent: ", currentComponent);
   const [subComponentInput, setSubComponentInput] = React.useState('');
   const [addSubComponentPressed, setAddSubComponentPressed] = React.useState(false);
 
 
-  const handleAddSubComponent = async (currentComponent) => {
-    console.log('handleAddSubComponent called, currentComponent: ', currentComponent);
+  const handleAddSubComponent = async (currentComponentObj) => {
+    console.log('handleAddSubComponent called, currentComponentObj: ', currentComponentObj);
     console.log('handleAddSubComponent called, addSubComponentPressed: ', addSubComponentPressed);
-    setCurrentComponent(currentComponent);
+    setCurrentComponent(currentComponentObj);
     setAddSubComponentPressed(true);
   };
 
@@ -652,30 +647,31 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
         <ListItem
           key={component.id}
         >
-      
 
-            {((currentComponent?.name == component.name) && renameComponentPressed) ?
-              <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={() => handleRenameComponentSubmitCb(composit, currentComponent, componentInput)} />
-              :
-              // <EntityBox entity={component} handleAddButton={handleAddSubComponent} handleDeleteButton={deleteComponent} handleRenameButton={handleRenameComponent} />
-         <>
+
+          {((currentComponent?.name == component.name) && renameComponentPressed) ?
+            <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleRenameComponentSubmitCb} />
+            :
+              
+            <>
+
               <ListItemText primary={`Component: ${component?.name}, id:  ${component?.id}`} />
-          <IconButton
-            onClick={() => handleAddSubComponent(component)}
-            aria-label="check"
-          >
-            <AddCircleIcon />
-          </IconButton>
-          <IconButton aria-label="delete" onClick={() => deleteComponentCb(composit?.name, component?.name, parentComponent?.name)}>
-            <DeleteIcon />
-          </IconButton>
-          
-          <IconButton aria-label="rename" onClick={() => handleRenameComponentCb(component)}>
-            <DriveFileRenameOutlineOutlinedIcon />
-          </IconButton>
-          </>
-            }
-        
+              <IconButton
+                onClick={() => handleAddSubComponent(component)}
+                aria-label="check"
+              >
+                <AddCircleIcon />
+              </IconButton>
+              <IconButton aria-label="delete" onClick={deleteComponentCb}>
+                <DeleteIcon />
+              </IconButton>
+
+              <IconButton aria-label="rename" onClick={() => handleRenameComponentCb(component)}>
+                <DriveFileRenameOutlineOutlinedIcon />
+              </IconButton>
+            </>
+          }
+
         </ListItem>
         {component.subcomponents && component.subcomponents?.map((subcomponent) => (
           <>
@@ -683,7 +679,6 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
               <ListOfComponents
                 composit={composit}
                 component={subcomponent}
-                parentComponent={component}
                 deleteComponentCb={deleteComponentCb}
                 handleSubComponentSubmitCb={handleSubComponentSubmitCb}
                 currentComponent={currentComponent}
