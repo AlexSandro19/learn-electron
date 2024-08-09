@@ -1,23 +1,17 @@
 
 import * as React from 'react';
-import Avatar from '@mui/material/Avatar';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import ListSubheader from '@mui/material/ListSubheader';
 import { Button, Input, Stack, TextField } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddCircleIcon from '@mui/icons-material/AddCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
+import EntityButtons from './EntityButtons';
 
 export default function Test() {
   const [composits, setComposits] = React.useState([]);
@@ -30,36 +24,6 @@ export default function Test() {
   const [addComponentPressed, setAddComponentPressed] = React.useState(false);
   const [componentInput, setComponentInput] = React.useState('');
 
-  // The old way through send.ipcRenderer/on.ipcMain
-  // const handleCompositSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-  //   event.preventDefault();
-  //   const formData = new FormData(event.currentTarget);
-  //   const data = Object.fromEntries(formData.entries());
-  //   console.log(data);
-  //   window.electron.testRenderer.sendAddComposit({ data });
-  // };
-  // React.useEffect(() => {
-  //   window.electron.testRenderer.onAddComposit((response) => {
-  //     // console.log('composits 0 name:', composits[0]?.name);
-  //     console.log('composits:', composits);
-  //     setComposits([...composits, response.composit]);
-  //     console.log(`response from server is: ${JSON.stringify(response)}`);
-
-  //   });
-  // }, [composits]);
-
-  // The new way through invoke.ipcRenderer/handle.ipcMain (async)
-  // const handleCompositSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  //   event.preventDefault();
-  //   const formData = new FormData(event.currentTarget);
-  //   const data = Object.fromEntries(formData.entries());
-  //   console.log('handleCompositSubmit, data: ', data);
-  //   const response = await window.electron.testRenderer.invokeAddComposit({ data });
-  //   console.log('handleCompositSubmit, response: ', response);
-  //   setComposits([...composits, response.composit]);
-  // };
-
-  // The new way through invoke.ipcRenderer/handle.ipcMain (async) and getting input data through state
   const handleCompositSubmit = async () => {
     const response = await window.electron.testRenderer.invokeAddComposit({ data: { compositName: compositInput } });
     console.log('handleCompositSubmit, response: ', response);
@@ -132,8 +96,6 @@ export default function Test() {
   }
 
 
-
-
   const handleComponentInputChange = (event) => {
     setComponentInput(event.target.value);
   };
@@ -150,19 +112,7 @@ export default function Test() {
     setAddComponentPressed(false);
     setRenameComponentPressed(false);
   };
-
-  // old way getting the input through form
-  // const handleComponentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  //   event.preventDefault();
-  //   const formData = new FormData(event.currentTarget);
-  //   const data = Object.fromEntries(formData.entries());
-  //   console.log('handleComponentSubmit, data: ', data);
-  //   const response = await window.electron.testRenderer.invokeAddComponent({ data: {component: 'test', composit: 'comp' }});
-  //   console.log('handleComponentSubmit, response: ', response);
-  //   // setComposits([...composits, response.composit]);
-  // };
-
-  // new way get the input through state
+  
   const handleComponentSubmit = async () => {
     console.log('handleComponentSubmit, componentInput: ', componentInput);
     // console.log('handleComponentSubmit, previousCompositInput: ', previousCompositInput);
@@ -206,28 +156,6 @@ export default function Test() {
     setComposits(updatedComposits);
   }
 
-  // const deleteComponentRecurive = (componentObj, componentName) => {
-  //   console.log('deleteComponentRecurive, componentObj: ', componentObj);
-  //   console.log('deleteComponentRecurive, componentName: ', componentName);
-
-  //   if (componentObj.subcomponents?.length > 0){
-  //     componentObj.subcomponents.filter((component) => {
-  //       const res = deleteComponentRecurive(component, componentName);
-  //       console.log('deleteComponent, res: ', res);
-
-  //     })
-  //   }else {
-  //     return componentObj;
-  //   }
-
-  //   if (componentObj.name == componentName) {
-  //     console.log('deleteComponentRecurive, componentObj == componentName');
-  //     return false;
-  //   }else{
-  //     return componentObj;
-  //   }
-  // }
-
   const deleteComponentRecurive = (componentObj, componentId) => {
     console.log('deleteComponentRecurive, componentObj: ', componentObj);
     console.log('deleteComponentRecurive, componentName: ', componentId);
@@ -248,7 +176,7 @@ export default function Test() {
     // console.log('deleteComponentRecurive, componentObj: ', componentObj);
     return componentObj;
   }
-//  --------------------------------------------
+
   const handleRenameComponent = (component) => {
     console.log("handleRenameComponent called, component: ", component)
     setAddComponentPressed(false);
@@ -317,17 +245,6 @@ export default function Test() {
       return compositObj;
     })
     console.log('handleComponentSubmit, compositsUpdated', compositsUpdated)
-    // const compositsUpdated = composits.map((composit) => {
-    //   if (composit.name == currentComposit) {
-    //     composit.components = composit.components.map(component => {
-    //       if (component.name == componentInput){
-    //         component.subComponents.push(response.subComponent)
-    //       }
-    //     });
-    //   }
-    //   return composit;
-    // })
-    // console.log('handleSubComponentSubmit, compositsUpdated: ', compositsUpdated);
     setComposits(compositsUpdated);
   };
 
@@ -347,103 +264,10 @@ export default function Test() {
     return componentObj;
   }
 
-  // const SubComponentInput = ({input}) => {
-  //   console.log('SubComponentInput render');
-  //   return (
-  //     <>
-
-  //           {/* <Stack direction="row" alignItems="center" gap={1}>
-  //             <TextField
-  //               required
-  //               fullWidth
-  //               id="new-subcomponent"
-  //               label="SubComponent"
-  //               name="subcomponent"
-  //               autoComplete="subcomponent"
-  //               // autoFocus
-  //               value={input}
-  //               onChange={handleSubComponentInputChange}
-  //             />
-  //             <IconButton
-  //               onClick={handleSubComponentInputSubmit}
-  //               sx={{ mt: 2, mb: 2 }}
-  //             >
-  //               <CheckCircleIcon />
-  //             </IconButton>
-  //             <IconButton
-  //               onClick={handleSubComponentInputCancel}
-  //               sx={{ mt: 2, mb: 2 }}
-  //             >
-  //               <CancelIcon />
-  //             </IconButton>
-  //           </Stack> */}
-  //        <Stack direction="row" alignItems="center" gap={1}>
-  //                 <TextField
-  //                   required
-  //                   fullWidth
-  //                   id="new-subComponent"
-  //                   label="subComponent"
-  //                   name="subComponent"
-  //                   autoComplete="subComponent"
-  //                   autoFocus
-  //                   value={input}
-  //                   onChange={handleSubComponentInputChange}
-  //                 />
-  //                 <IconButton
-  //                   onClick={handleSubComponentInputSubmit}
-  //                   sx={{ mt: 2, mb: 2 }}
-  //                 >
-  //                   <CheckCircleIcon />
-  //                 </IconButton>
-  //                 <IconButton
-  //                   onClick={handleSubComponentInputCancel}
-  //                   sx={{ mt: 2, mb: 2 }}
-  //                 >
-  //                   <CancelIcon />
-  //                 </IconButton>
-  //               </Stack>
-
-  //     </>)
-  // }
 
   return (
     <Container component="main" maxWidth="lg">
       <CssBaseline />
-      {/* <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Input placeholder="Placeholder" />
-        <List dense sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}>
-          <ListItem>
-            <ListItemText
-              primary="Single-line item"
-            />
-            <IconButton edge="start" aria-label="delete">
-              <DeleteIcon />
-            </IconButton>
-            <IconButton edge="end" aria-label="more"
-               onClick={() => {
-              }}
-            >
-              <MoreHorizIcon />
-            </IconButton>
-            <IconButton edge="end" aria-label="add"
-               onClick={() => {
-                window.electron.testRenderer.sendAddSubcomponent((response) => {
-                  console.log(`response from server: ${response}`);
-                });
-              }}
-            >
-              <AddCircleIcon />
-            </IconButton>
-          </ListItem>
-        </List>
-      </Box> */}
       <Box
         sx={{
           marginTop: 8,
@@ -456,29 +280,6 @@ export default function Test() {
           First Page
         </Typography>
         <Button sx={{ mt: 1, mb: 1 }} variant="contained" onClick={getComposits}>Sync Composits</Button>
-        {/* <Box component='form' onSubmit={handleComponentSubmit} noValidate sx={{ mt: 1 }}>
-          <TextField
-            required
-            fullWidth
-            id="new-composit"
-            label="Composit"
-            name="composit"
-            autoComplete="composit"
-          />
-          <IconButton
-            type="button"
-            onClick={handleCompositSubmit}
-            sx={{ mt: 3, mb: 2 }}
-          >
-            <CheckCircleIcon />
-          </IconButton>
-          <IconButton
-            type="reset"
-            sx={{ mt: 3, mb: 2 }}
-          >
-            <CancelIcon />
-          </IconButton>
-        </Box> */}
         {
           addCompositPressed ?
             <InputBox textFieldId={"new-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={handleCompositInputSubmit} />
@@ -505,27 +306,10 @@ export default function Test() {
                       <Typography component="h1" variant="h5">
                         {composit?.name}
                       </Typography>
-                      <EntityButtons handleAddButton={() => handleAddComponent(composit)} handleDeleteButton={() => deleteComposit(composit)} handleRenameButton={() => handleRenameComposit(composit)} />
+                      <EntityButtons handleAddButtonCbFn={() => handleAddComponent(composit)} handleDeleteButtonCbFn={() => deleteComposit(composit)} handleRenameButtonCbFn={() => handleRenameComposit(composit)} />
                 </Stack>
               }
               {composit?.components && composit?.components.map((component) => (
-                // <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
-                //   <ListItem
-                //     key={component?.id}
-                //   >
-                //     <ListItemText primary={`Line item ${component?.name}, id:  ${component?.id}`} />
-                //     <IconButton
-                //       onClick={() => handleAddSubComponent(composit?.id, component?.id)}
-                //       sx={{ mt: 2, mb: 2 }}
-                //       aria-label="check"
-                //     >
-                //       <AddCircleIcon />
-                //     </IconButton>
-                //     <IconButton aria-label="delete" onClick={() => deleteComponent(composit?.name, component?.name)}>
-                //       <DeleteIcon />
-                //     </IconButton>
-                //   </ListItem>
-                // </List>
                 <ListOfComponents
                   composit={composit}
                   component={component}
@@ -539,8 +323,6 @@ export default function Test() {
                   renameComponentPressed={renameComponentPressed}
                   handleRenameComponentCb={handleRenameComponent}
                   handleRenameComponentSubmitCb={() => handleRenameComponentSubmit(composit, currentComponent, componentInput)}
-
-
                 />
               ))}
 
@@ -591,25 +373,7 @@ function InputBox({ input, textFieldId, textFieldLabel, textFieldName, handleInp
   )
 }
 
-function EntityButtons({ handleAddButton, handleDeleteButton, handleRenameButton }) {
-  return (
-      <>
-      <IconButton
-        // onClick={() => handleAddButton(entity)}
-        onClick={handleAddButton}
-        sx={{ mt: 2, mb: 2 }}
-      >
-        <AddCircleIcon />
-      </IconButton>
-      <IconButton aria-label="delete" onClick={handleDeleteButton}>
-        <DeleteIcon />
-      </IconButton>
-      <IconButton aria-label="rename" onClick={handleRenameButton}>
-        <DriveFileRenameOutlineOutlinedIcon />
-      </IconButton>
-      </>
-  )
-}
+
 
 function ListOfComponents({ composit, component, deleteComponentCb, renameComponentPressed, handleSubComponentSubmitCb, handleRenameComponentCb, currentComponent, setCurrentComponent, componentInput, handleComponentInputChange, handleComponentInputCancel, handleRenameComponentSubmitCb }) {
   console.log("ListOfComponents, renameComponentPressed: ", renameComponentPressed);
@@ -647,28 +411,12 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
         <ListItem
           key={component.id}
         >
-
-
           {((currentComponent?.name == component.name) && renameComponentPressed) ?
             <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleRenameComponentSubmitCb} />
             :
-              
             <>
-
               <ListItemText primary={`Component: ${component?.name}, id:  ${component?.id}`} />
-              <IconButton
-                onClick={() => handleAddSubComponent(component)}
-                aria-label="check"
-              >
-                <AddCircleIcon />
-              </IconButton>
-              <IconButton aria-label="delete" onClick={() => deleteComponentCb(composit, component)}>
-                <DeleteIcon />
-              </IconButton>
-
-              <IconButton aria-label="rename" onClick={() => handleRenameComponentCb(component)}>
-                <DriveFileRenameOutlineOutlinedIcon />
-              </IconButton>
+              <EntityButtons handleAddButtonCbFn={() => handleAddSubComponent(component)} handleDeleteButtonCbFn={() => deleteComponentCb(composit, component)} handleRenameButtonCbFn={() => handleRenameComponentCb(component)} />
             </>
           }
 
