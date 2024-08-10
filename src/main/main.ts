@@ -16,11 +16,7 @@ import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import { sequelize } from '../../database/models/index';
 import { User } from '../../database/models/user';
-import { Test } from '../../database/models/test';
-// import { Component } from '../../database/models/component';
-// import { Composit } from '../../database/models/composit';
 import { Composit, Component, ParentComponentChildComponent } from '../../database/models/relationships';
-import { Associations } from '../../database/models/associations';
 import bcrypt from "bcrypt";
 import validator from 'validator';
 import { password } from '../../database/config/config';
@@ -38,20 +34,7 @@ const saltRounds = 10;
     })
     .catch((error) => console.log('Failed to connect database:', error))
 
-  // Associations();
-  // Composit.hasMany(Component, {
-  //   foreignKey: 'compositId',
-  //   onDelete: 'CASCADE',
-  // });
-
-  // Component.belongsTo(Composit);
-
-
-  // Component.belongsToMany(Component, { as: 'parentComponents', through: 'ComponentChildren' });
-  // Component.belongsToMany(Component, { as: 'childComponents', through: 'ComponentChildren' });
-
   await sequelize.sync();
-  //console.log('sequelize synced')
 })();
 
 class AppUpdater {
@@ -65,8 +48,6 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 
 ipcMain.on('ipc-example', async (event, arg) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log(arg);
   event.reply('ipc-example', 'pong');
 });
@@ -114,23 +95,7 @@ ipcMain.on('signup', async (event, arg) => {
 
 });
 
-// ipcMain.on('addComposit', async (event, arg) => {
-//   // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-//   // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-//   console.log("addComposit received")
-//   const {composit: compositName} = arg.data;
-//   const response = { composit: null, msg: "", error: null }
-//   const composit = (await Composit.create({ name: compositName })).dataValues;
-//   console.log("composit: ", composit);
-//   response.composit = composit;
-//   console.log("response: ", response);
-
-//   event.reply('addComposit', response);
-// });
-
 ipcMain.handle('addComposit', async (event, arg) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log("addComposit received arg: ", arg)
   const { compositName } = arg.data;
   const response = { composit: null, msg: "", error: null }
@@ -145,8 +110,6 @@ ipcMain.handle('addComposit', async (event, arg) => {
 
 
 ipcMain.handle('deleteComposit', async (event, arg) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log("deleteComposit received")
   const { compositId } = arg.data;
   const response = { isCompositDeleted: false, msg: "", error: null }
@@ -161,8 +124,6 @@ ipcMain.handle('deleteComposit', async (event, arg) => {
 });
 
 ipcMain.handle('renameComposit', async (event, arg) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log("renameComposit received")
   const { compositId, newCompositName  } = arg.data;
   const response = { isCompositUpdated: false, msg: "", error: null }
@@ -181,8 +142,6 @@ ipcMain.handle('renameComposit', async (event, arg) => {
 });
 
 ipcMain.handle('getComposits', async (event) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   const response = { composits: null, msg: "", error: null }
   // const composits = (await Composit.findAll({ include: Component })).map(composit => composit?.toJSON());
   // https://sequelize.org/docs/v7/querying/select-in-depth/#filtering-associated-models
@@ -223,20 +182,6 @@ ipcMain.handle('getComposits', async (event) => {
   }));
   console.log("getComposits compositsComponentsSubcomponents: ", JSON.stringify(compositsComponentsSubcomponents));
   console.log("getComposits composits: ", composits);
-  // const compositArray = (await Composit.findAll()).map(composit => composit?.toJSON()); // get composits without components
-  // const compositsWithComponents = await Promise.all(composits.map(async (composit) => {
-  //   const compositComponents = await composit.getComponents();
-  //   const compositComponentsToJson = compositComponents.map(component => component?.toJSON())
-  //   const compositToJson = composit?.toJSON();
-  //   compositToJson.components = compositComponentsToJson;
-  //   return compositToJson;
-  // }))
-  // console.log("compositsWithComponents: ", compositsWithComponents);
-  // console.log("compositsWithComponents Print: ", JSON.stringify(compositsWithComponents));
-  // response.compositArray = compositsWithComponents;
-  // response.compositArray = getCompositsResponse;
-  // console.log("response: ", response);
-
   response.composits = compositsComponentsSubcomponents;
   return response;
 });
@@ -258,21 +203,6 @@ const getComponentSubcomponents = async (componentObj) => {
   const componentObjToJson = componentObj.toJSON();
   console.log('updateComponentWithNewSubcomponent, componentObjToJson: ', componentObjToJson);
   return componentObjToJson;
-
-
-  // console.log('handleSubComponentSubmit, componentObj: ', componentObj);
-  // if (componentObj.id == selectedComponent.id) {
-  //   componentObj.subcomponents ??= []; // Nullish coalescing assignment
-  //   componentObj.subcomponents?.push(receivedSubComponent);
-  // }
-
-  // if (componentObj.subcomponents?.length > 0){
-  //   componentObj.subcomponents.map((component) => {
-  //     updateComponentWithNewSubcomponent(component, selectedComponent, receivedSubComponent);
-  //   })
-  // }
-  // console.log('handleSubComponentSubmit, componentObj after if{}: ', componentObj);
-  // return componentObj;
 }
 
 ipcMain.handle('addComponent', async (event, arg) => {
@@ -281,23 +211,14 @@ ipcMain.handle('addComponent', async (event, arg) => {
   const { componentName, compositId } = arg.data;
 
   const response = { component: null, msg: "", error: null }
-  // const component = (await Component.create({ name: componentName, compositId: 1 })).toJSON();
   const composit = await Composit.findByPk(compositId);
-  // if composit object is not returned -> give error
   // Sequelize provides createComponent method on composit object because we defined 
   //    association between Composit and Component tables 
   //    (check here: https://sequelize.org/docs/v6/core-concepts/assocs/#special-methodsmixins-added-to-instances)
   const component = composit ? (await composit.createComponent({ name: componentName, main_component: true })).toJSON() : null;
   console.log("addComponent composit: ", composit);
   console.log("addComponent component: ", component);
-  // const updatedComposit = await composit.getComponents();
-  // console.log("addComponent updatedComposit: ", updatedComposit);
   response.component = component;
-  // response.component = component;
-  // const component = (await Component.create({ name: componentName})).toJSON();
-  // console.log("composit: ", composit);
-  // response.composit = composit;
-  // console.log("response: ", response);
   return response;
 });
 
@@ -307,57 +228,27 @@ ipcMain.handle('addSubComponent', async (event, arg) => {
   console.log("addSubComponent componentName: ", componentId);
   console.log("addSubComponent subComponentName: ", subComponentName);
   const response = { subComponent: null, composit: null, msg: "", error: null }
-  // const component = (await Component.create({ name: componentName, compositId: 1 })).toJSON();
   const composit = await Composit.findByPk(compositId);
   const component = await Component.findByPk(componentId);
   // if composit object is not returned -> give error
-  // const subComponent = component ? (await component.setParentComponents({ name: componentName })).toJSON() : null;
   const subComponent = composit ? (await composit.createComponent({ name: subComponentName })).toJSON() : null;
   // using Sequelize special function to accees the associated Children of Component: https://sequelize.org/docs/v6/core-concepts/assocs/#special-methodsmixins-added-to-instances
   const newComponent = await component.addChildren(subComponent.id);
-  // const subCompFull = await component.getChildren();
-  // const table = await ParentComponentChildComponent.findAll({where: {componentId: component.id}, include: Component})
-  // const subComponent = Component.create({ name: subComponentName, compositId: composit.id});
-  // const ComponentAndSubComponentRelationship = (await ComponentChildren.create({ parentComponentId: component.id, childComponentId: subComponent.id }))?.toJSON();
-  // // const componentsWithSubComponents = await Component.findOne({ where: { name: componentName }, include: {model: ComponentChildren, as: 'childComponents'}});
-  // const componentsWithSubComponents = await component.getChildren();
   console.log("addSubComponent subComponent: ", subComponent);
   console.log("addSubComponent newComponent: ", newComponent);
-  // console.log("addSubComponent subCompFull: ", JSON.stringify(subCompFull));
-  // console.log("addSubComponent table: ", JSON.stringify(table));
   response.subComponent = subComponent;
-  // console.log("addSubComponent ComponentAndSubComponentRelationship: ", ComponentAndSubComponentRelationship);
-  // console.log("addSubComponent componentsWithSubComponents: ", componentsWithSubComponents);
-  // const updatedComposit = await composit.getComponents();
-  // console.log("addComponent updatedComposit: ", updatedComposit);
-  // response.component = component;
-  // response.component = component;
-  // const component = (await Component.create({ name: componentName})).toJSON();
-  // console.log("composit: ", composit);
-  // response.composit = composit;
-  // console.log("response: ", response);
   return response;
 });
 
 ipcMain.handle('deleteComponent', async (event, arg) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log("deleteComponent received")
-  // const { component: name, parentComponent: parentName } = arg.data;
   const { componentId  } = arg.data;
   const response = { isComponentDeleted: false, msg: "", error: null }
-  // const parentComponent = parentName ? await Component.findOne({ where: { name: parentName } }) : null;
   const component = await Component.findByPk(componentId);
   const componentIdsToDelete = await getComponentIds(component);
   const componentIdsToDeleteFlat = componentIdsToDelete.flat(Infinity);
-  // await component?.removeChildren();
   console.log('deleteComponent, componentIdsToDeleteFlat: ', componentIdsToDeleteFlat);
-  // const deletedRows = await component?.destroy();
   const deletedRows = await Component.destroy({where: {id: componentIdsToDeleteFlat}})
-  // if (component && parentComponent && deletedRows > 0){
-  //   // await parentComponent?.removeChildren(component.id); // this way I delete rows from the linking table
-  // }
-  // const deletedRows = await Component.destroy({ where: { name: name } });
   const isComponentDeleted = deletedRows ? true : false;
   console.log("isComponentDeleted: ", isComponentDeleted);
   response.isComponentDeleted = isComponentDeleted;
@@ -379,8 +270,6 @@ const getComponentIds = async (component) => {
 }
 
 ipcMain.handle('renameComponent', async (event, arg) => {
-  // const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  // console.log(msgTemplate(arg)); const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log("renameComponent received arg.data: ", arg.data)
   const { componentId, newComponentName  } = arg.data;
   const response = { isComponentUpdated: false, msg: "", error: null }

@@ -9,7 +9,6 @@ export default function EntityButtons({ handleAddButtonCbFn, handleDeleteButtonC
       <>
       <IconButton
         onClick={handleAddButtonCbFn}
-        sx={{ mt: 2, mb: 2 }}
         aria-label="add"
       >
         <AddCircleIcon />
