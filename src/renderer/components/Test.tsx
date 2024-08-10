@@ -1,5 +1,4 @@
-
-import * as React from 'react';
+import { useEffect, useState } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -7,22 +6,24 @@ import Container from '@mui/material/Container';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import { Button, Input, Stack, TextField } from '@mui/material';
-import IconButton from '@mui/material/IconButton';
-import CancelIcon from '@mui/icons-material/Cancel';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Button, Stack } from '@mui/material';
 import EntityButtons from './EntityButtons';
+import InputBox from './InputBox';
 
 export default function Test() {
-  const [composits, setComposits] = React.useState([]);
-  const [compositInput, setCompositInput] = React.useState('');
-  const [currentComposit, setCurrentComposit] = React.useState(null);
-  const [addCompositPressed, setAddCompositPressed] = React.useState(false);
-  const [renameCompositPressed, setRenameCompositPressed] = React.useState(false);
-  const [currentComponent, setCurrentComponent] = React.useState(null);
-  const [renameComponentPressed, setRenameComponentPressed] = React.useState(false);
-  const [addComponentPressed, setAddComponentPressed] = React.useState(false);
-  const [componentInput, setComponentInput] = React.useState('');
+  const [composits, setComposits] = useState([]);
+  const [compositInput, setCompositInput] = useState('');
+  const [currentComposit, setCurrentComposit] = useState(null);
+  const [addCompositPressed, setAddCompositPressed] = useState(false);
+  const [renameCompositPressed, setRenameCompositPressed] = useState(false);
+  const [currentComponent, setCurrentComponent] = useState(null);
+  const [renameComponentPressed, setRenameComponentPressed] = useState(false);
+  const [addComponentPressed, setAddComponentPressed] = useState(false);
+  const [componentInput, setComponentInput] = useState('');
+
+  useEffect(() => {
+    getComposits();
+  }, []);
 
   const handleCompositSubmit = async () => {
     const response = await window.electron.testRenderer.invokeAddComposit({ data: { compositName: compositInput } });
@@ -51,7 +52,8 @@ export default function Test() {
   const getComposits = async () => {
     const response = await window.electron.testRenderer.invokeGetComposits();
     console.log('getComposits, response: ', response);
-    setComposits(response.composits);
+    const { composits } = response;
+    setComposits(composits);
   };
 
   const deleteComposit = async (compositToDelete) => {
@@ -279,7 +281,6 @@ export default function Test() {
         <Typography component="h1" variant="h5">
           First Page
         </Typography>
-        <Button sx={{ mt: 1, mb: 1 }} variant="contained" onClick={getComposits}>Sync Composits</Button>
         {
           addCompositPressed ?
             <InputBox textFieldId={"new-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={handleCompositInputSubmit} />
@@ -342,44 +343,11 @@ export default function Test() {
 }
 
 
-function InputBox({ input, textFieldId, textFieldLabel, textFieldName, handleInputChange, handleInputCancel, handleInputSubmit }) {
-  return (
-    <>
-      <Stack direction="row" alignItems="center" gap={1}>
-        <TextField
-          required
-          fullWidth
-          id={textFieldId}
-          label={textFieldLabel}
-          name={textFieldName}
-          autoComplete={textFieldName}
-          value={input}
-          onChange={handleInputChange}
-        />
-        <IconButton
-          onClick={handleInputSubmit}
-          sx={{ mt: 2, mb: 2 }}
-        >
-          <CheckCircleIcon />
-        </IconButton>
-        <IconButton
-          onClick={handleInputCancel}
-          sx={{ mt: 2, mb: 2 }}
-        >
-          <CancelIcon />
-        </IconButton>
-      </Stack>
-    </>
-  )
-}
-
-
-
 function ListOfComponents({ composit, component, deleteComponentCb, renameComponentPressed, handleSubComponentSubmitCb, handleRenameComponentCb, currentComponent, setCurrentComponent, componentInput, handleComponentInputChange, handleComponentInputCancel, handleRenameComponentSubmitCb }) {
   console.log("ListOfComponents, renameComponentPressed: ", renameComponentPressed);
   console.log("ListOfComponents, currentComponent: ", currentComponent);
-  const [subComponentInput, setSubComponentInput] = React.useState('');
-  const [addSubComponentPressed, setAddSubComponentPressed] = React.useState(false);
+  const [subComponentInput, setSubComponentInput] = useState('');
+  const [addSubComponentPressed, setAddSubComponentPressed] = useState(false);
 
 
   const handleAddSubComponent = async (currentComponentObj) => {
@@ -410,6 +378,7 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
       <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
         <ListItem
           key={component.id}
+          sx={{ padding: 0 }}
         >
           {((currentComponent?.name == component.name) && renameComponentPressed) ?
             <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleRenameComponentSubmitCb} />
