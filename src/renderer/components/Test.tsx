@@ -20,6 +20,8 @@ export default function Test() {
   const [renameComponentPressed, setRenameComponentPressed] = useState(false);
   const [addComponentPressed, setAddComponentPressed] = useState(false);
   const [componentInput, setComponentInput] = useState('');
+  const [didReceiveError, setDidReceiveError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     getComposits();
@@ -28,7 +30,17 @@ export default function Test() {
   const handleCompositSubmit = async () => {
     const response = await window.electron.testRenderer.invokeAddComposit({ data: { compositName: compositInput } });
     console.log('handleCompositSubmit, response: ', response);
-    setComposits([...composits, response.composit]);
+    if (response?.composit) {
+      setComposits([...composits, response.composit]);
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
+    }
     setAddCompositPressed(false);
   };
 
@@ -52,18 +64,35 @@ export default function Test() {
   const getComposits = async () => {
     const response = await window.electron.testRenderer.invokeGetComposits();
     console.log('getComposits, response: ', response);
-    const { composits } = response;
-    setComposits(composits);
+    if (response?.composits) {
+      setComposits(response.composits);
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
+    }
   };
 
   const deleteComposit = async (compositToDelete) => {
     const response = await window.electron.testRenderer.invokeDeleteComposit({ data: { compositId: compositToDelete?.id } });
     console.log('deleteComposit, response: ', response);
-    if (response.isCompositDeleted) {
+
+    if (response?.isCompositDeleted) {
       const updatedComposits = composits.filter((composit) => composit?.id != compositToDelete?.id);
       setComposits(updatedComposits);
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
     }
-    // else print the error message
   }
 
   const handleAddComposit = () => {
@@ -77,22 +106,32 @@ export default function Test() {
     setRenameCompositPressed(true);
     setAddCompositPressed(false);
     setCurrentComposit(composit);
-    setCompositInput(composit.name);
+    setCompositInput(composit?.name);
   }
 
   const handleRenameCompositSubmit = async (compositToRename, newCompositName) => {
     const response = await window.electron.testRenderer.invokeRenameComposit({ data: { compositId: compositToRename?.id, newCompositName } });
     console.log('renameComposit, response: ', response);
-    if (response.isCompositUpdated) {
+
+    if (response?.isCompositUpdated) {
       const updatedComposits = composits.map((compositObj) => {
         if (compositObj?.id == compositToRename?.id) {
           compositObj.name = newCompositName;
         }
         return compositObj;
       });
+
       setComposits(updatedComposits);
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
     }
-    // else give some message that composit wasn't updated
+
     setCompositInput('');
     setRenameCompositPressed(false);
   }
@@ -114,20 +153,32 @@ export default function Test() {
     setAddComponentPressed(false);
     setRenameComponentPressed(false);
   };
-  
+
   const handleComponentSubmit = async () => {
     console.log('handleComponentSubmit, componentInput: ', componentInput);
     // console.log('handleComponentSubmit, previousCompositInput: ', previousCompositInput);
     const response = await window.electron.testRenderer.invokeAddComponent({ data: { componentName: componentInput, compositId: currentComposit?.id } });
     // console.log('handleComponentSubmit, response: ', response);
-    const compositsUpdated = composits.map((composit) => {
-      if (composit?.id == currentComposit?.id) {
-        composit.components?.push(response.component)
-      }
-      return composit;
-    })
-    console.log('handleComponentSubmit, compositsUpdated: ', compositsUpdated);
-    setComposits(compositsUpdated);
+
+    if (response?.component) {
+      const compositsUpdated = composits.map((composit) => {
+        if (composit?.id == currentComposit?.id) {
+          composit.components?.push(response.component)
+        }
+        return composit;
+      })
+      console.log('handleComponentSubmit, compositsUpdated: ', compositsUpdated);
+      setComposits(compositsUpdated);
+
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
+    }
   };
 
   const handleAddComponent = async (currentCompositObj) => {
@@ -143,19 +194,32 @@ export default function Test() {
   const deleteComponent = async (composit, component) => {
     const response = await window.electron.testRenderer.invokeDeleteComponent({ data: { componentId: component?.id } });
     // console.log('deleteComponent, response: ', response);
-    const updatedComposits = composits.map((compositObj) => {
-      if (compositObj?.id == composit?.id) {
-        // console.log('deleteComponent, composit: ', composit)
-        // composit.components = composit.components?.filter((component) => component?.name != componentName);
-        compositObj.components = compositObj.components?.filter((componentObj) => {
-          return deleteComponentRecurive(componentObj, component?.id)
-        });
-        console.log('deleteComponent, composit: ', compositObj);
-      }
-      return compositObj;
-    })
-    console.log('deleteComponent, updatedComposits: ', updatedComposits);
-    setComposits(updatedComposits);
+
+    if (response?.isComponentDeleted) {
+      const updatedComposits = composits.map((compositObj) => {
+        if (compositObj?.id == composit?.id) {
+          // console.log('deleteComponent, composit: ', composit)
+          // composit.components = composit.components?.filter((component) => component?.name != componentName);
+          compositObj.components = compositObj.components?.filter((componentObj) => {
+            return deleteComponentRecurive(componentObj, component?.id)
+          });
+          console.log('deleteComponent, composit: ', compositObj);
+        }
+        return compositObj;
+      })
+      console.log('deleteComponent, updatedComposits: ', updatedComposits);
+      setComposits(updatedComposits);
+
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
+    }
+
   }
 
   const deleteComponentRecurive = (componentObj, componentId) => {
@@ -184,13 +248,14 @@ export default function Test() {
     setAddComponentPressed(false);
     setRenameComponentPressed(true);
     setCurrentComponent(component);
-    setComponentInput(component.name);
+    setComponentInput(component?.name);
   }
 
   const handleRenameComponentSubmit = async (composit, componentToRename, newComponentName) => {
     const response = await window.electron.testRenderer.invokeRenameComponent({ data: { componentId: componentToRename?.id, newComponentName } });
     console.log('handleRenameComponentSubmit, response: ', response);
-    if (response.isComponentUpdated) {
+
+    if (response?.isComponentUpdated) {
       const updatedComposits = composits.map((compositObj) => {
 
 
@@ -203,7 +268,17 @@ export default function Test() {
         return compositObj;
       });
       setComposits(updatedComposits);
-    }// else give some message that composit wasn't updated
+
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
+    }
+
 
     setComponentInput('');
     setRenameComponentPressed(false);
@@ -235,19 +310,34 @@ export default function Test() {
     // console.log('handleSubComponentSubmit, previousCompositInput: ', previousCompositInput);
     const response = await window.electron.testRenderer.invokeAddSubComponent({ data: { subComponentName: subComponentInput, componentId: selectedComponent?.id, compositId: selectedComposit?.id } });
     console.log('handleSubComponentSubmit, response: ', response);
-    const compositsUpdated = composits.map((compositObj) => {
-      console.log('handleSubComponentSubmit, compositObj: ', compositObj);
 
-      if (compositObj.id == selectedComposit.id) {
-        compositObj.components = compositObj.components?.map((componentObj) => {
-          return updateComponentWithNewSubcomponent(componentObj, selectedComponent, response.subComponent)
-        })
+    if (response?.subComponent) {
+      const compositsUpdated = composits.map((compositObj) => {
+        console.log('handleSubComponentSubmit, compositObj: ', compositObj);
 
-      }
-      return compositObj;
-    })
-    console.log('handleComponentSubmit, compositsUpdated', compositsUpdated)
-    setComposits(compositsUpdated);
+        if (compositObj.id == selectedComposit.id) {
+          compositObj.components = compositObj.components?.map((componentObj) => {
+            return updateComponentWithNewSubcomponent(componentObj, selectedComponent, response.subComponent)
+          })
+
+        }
+        return compositObj;
+      })
+      console.log('handleComponentSubmit, compositsUpdated', compositsUpdated)
+      setComposits(compositsUpdated);
+
+      setDidReceiveError(false);
+      setErrorMessage('');
+    } else if (response?.error) {
+      setDidReceiveError(true);
+      setErrorMessage(response.msg);
+    } else {
+      setDidReceiveError(true);
+      setErrorMessage("Server error occured.");
+    }
+
+
+
   };
 
   const updateComponentWithNewSubcomponent = (componentObj, selectedComponent, receivedSubComponent) => {
@@ -281,6 +371,11 @@ export default function Test() {
         <Typography component="h1" variant="h5">
           First Page
         </Typography>
+        {didReceiveError && (
+          <div>
+            <p>{errorMessage}</p>
+          </div>
+        )}
         {
           addCompositPressed ?
             <InputBox textFieldId={"new-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={handleCompositInputSubmit} />
@@ -300,14 +395,14 @@ export default function Test() {
                 alignItems: 'center',
               }}
             >
-              {((currentComposit?.name == composit.name) && renameCompositPressed) ?
+              {((currentComposit?.name == composit?.name) && renameCompositPressed) ?
                 <InputBox textFieldId={"rename-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={() => handleRenameCompositSubmit(currentComposit, compositInput)} />
                 :
                 <Stack direction="row" alignItems="center" gap={1}>
-                      <Typography component="h1" variant="h5">
-                        {composit?.name}
-                      </Typography>
-                      <EntityButtons handleAddButtonCbFn={() => handleAddComponent(composit)} handleDeleteButtonCbFn={() => deleteComposit(composit)} handleRenameButtonCbFn={() => handleRenameComposit(composit)} />
+                  <Typography component="h1" variant="h5">
+                    {composit?.name}
+                  </Typography>
+                  <EntityButtons handleAddButtonCbFn={() => handleAddComponent(composit)} handleDeleteButtonCbFn={() => deleteComposit(composit)} handleRenameButtonCbFn={() => handleRenameComposit(composit)} />
                 </Stack>
               }
               {composit?.components && composit?.components.map((component) => (
@@ -380,7 +475,7 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
           key={component.id}
           sx={{ padding: 0 }}
         >
-          {((currentComponent?.name == component.name) && renameComponentPressed) ?
+          {((currentComponent?.name == component?.name) && renameComponentPressed) ?
             <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleRenameComponentSubmitCb} />
             :
             <>

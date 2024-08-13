@@ -52,6 +52,8 @@ ipcMain.on('ipc-example', async (event, arg) => {
   event.reply('ipc-example', 'pong');
 });
 
+// Authentication Handling
+
 ipcMain.on('signup', async (event, arg) => {
   const { name, username, email, password } = arg.data;
   console.log(arg.data);
@@ -95,198 +97,6 @@ ipcMain.on('signup', async (event, arg) => {
 
 });
 
-ipcMain.handle('addComposit', async (event, arg) => {
-  console.log("addComposit received arg: ", arg)
-  const { compositName } = arg.data;
-  const response = { composit: null, msg: "", error: null }
-  const composit = (await Composit.create({ name: compositName }))?.toJSON();
-  composit.components = [];
-  console.log("addComposit composit: ", composit);
-  response.composit = composit;
-  console.log("response: ", response);
-
-  return response;
-});
-
-
-ipcMain.handle('deleteComposit', async (event, arg) => {
-  console.log("deleteComposit received")
-  const { compositId } = arg.data;
-  const response = { isCompositDeleted: false, msg: "", error: null }
-  const compositToDelete = await Composit.findByPk(compositId);
-  const deletedRows = await compositToDelete?.destroy();
-  const isCompositDeleted = deletedRows ? true : false;
-  console.log("isCompositDeleted: ", isCompositDeleted);
-  response.isCompositDeleted = isCompositDeleted;
-  console.log("response: ", response);
-
-  return response;
-});
-
-ipcMain.handle('renameComposit', async (event, arg) => {
-  console.log("renameComposit received")
-  const { compositId, newCompositName  } = arg.data;
-  const response = { isCompositUpdated: false, msg: "", error: null }
-  const composit = await Composit.findByPk(compositId);
-  if (composit){
-    composit.name = newCompositName;
-    await composit.save();
-    response.isCompositUpdated = true;
-  }else{
-    response.msg = "Provided Composit doesn't exist";
-    response.error = true;
-  }
-  console.log("response: ", response);
-
-  return response;
-});
-
-ipcMain.handle('getComposits', async (event) => {
-  const response = { composits: null, msg: "", error: null }
-  // const composits = (await Composit.findAll({ include: Component })).map(composit => composit?.toJSON());
-  // https://sequelize.org/docs/v7/querying/select-in-depth/#filtering-associated-models
-  
-  
-  const compositsWithJson = (await Composit.findAll( { include: [
-    {
-      model: Component,
-      required: false, // added to include Composits which don't have a Component associated to them
-      where: {
-        main_component: true,
-      },
-    },
-  ], })).map(composit => composit?.toJSON());
-
-  const composits = await Composit.findAll( { include: [
-    {
-      model: Component,
-      required: false, // added to include Composits which don't have a Component associated to them
-      where: {
-        main_component: true,
-      },
-    },
-  ], });
-
-  const compositsComponentsSubcomponents = await Promise.all(composits.map(async (composit) => {
-    // const compositComponents = await composit.getComponents();
-    console.log("getComposits each composit: ", composit);
-    const compositComponentsToJson = await Promise.all(await composit.components?.map(async (component) => {
-      const getCompWithSubComp = await getComponentSubcomponents(component);
-      console.log("getComposits getCompWithSubComp: ", getCompWithSubComp);
-      return getCompWithSubComp;
-    }));
-    console.log("getComposits compositComponentsToJson: ", compositComponentsToJson);
-    const compositToJson = composit?.toJSON();
-    compositToJson.components = compositComponentsToJson;
-    return compositToJson;
-  }));
-  console.log("getComposits compositsComponentsSubcomponents: ", JSON.stringify(compositsComponentsSubcomponents));
-  console.log("getComposits composits: ", composits);
-  response.composits = compositsComponentsSubcomponents;
-  return response;
-});
-
-const getComponentSubcomponents = async (componentObj) => {
-  console.log('updateComponentWithNewSubcomponent, componentObj: ', componentObj);
-  const componentSubComponents = await componentObj.getChildren();
-  console.log('updateComponentWithNewSubcomponent, componentSubComponents: ', componentSubComponents);
-  let componentSubComponentsToJSON = []
-  if (componentSubComponents?.length > 0) {
-    componentSubComponentsToJSON = await Promise.all(componentSubComponents.map(async (component) => { // have Promise.all because getComponentSubcomponents is async and is called recursively
-      const resp = await getComponentSubcomponents(component); // await not necessary, but kept it to point that getComponentSubcomponents is async (if I understand it correctly)
-      console.log('updateComponentWithNewSubcomponent, resp: ', resp);
-      return resp;
-    }));
-  }
-  componentObj.dataValues.subcomponents = componentSubComponentsToJSON;
-  console.log('updateComponentWithNewSubcomponent, componentObj.dataValues.subcomponents: ', componentObj.dataValues.subcomponents);
-  const componentObjToJson = componentObj.toJSON();
-  console.log('updateComponentWithNewSubcomponent, componentObjToJson: ', componentObjToJson);
-  return componentObjToJson;
-}
-
-ipcMain.handle('addComponent', async (event, arg) => {
-  console.log("addComponent received")
-  console.log("addComponent arg.data: ", arg.data);
-  const { componentName, compositId } = arg.data;
-
-  const response = { component: null, msg: "", error: null }
-  const composit = await Composit.findByPk(compositId);
-  // Sequelize provides createComponent method on composit object because we defined 
-  //    association between Composit and Component tables 
-  //    (check here: https://sequelize.org/docs/v6/core-concepts/assocs/#special-methodsmixins-added-to-instances)
-  const component = composit ? (await composit.createComponent({ name: componentName, main_component: true })).toJSON() : null;
-  console.log("addComponent composit: ", composit);
-  console.log("addComponent component: ", component);
-  response.component = component;
-  return response;
-});
-
-ipcMain.handle('addSubComponent', async (event, arg) => {
-  console.log("addSubComponent arg.data: ", arg.data);
-  const { subComponentName, componentId, compositId } = arg.data;
-  console.log("addSubComponent componentName: ", componentId);
-  console.log("addSubComponent subComponentName: ", subComponentName);
-  const response = { subComponent: null, composit: null, msg: "", error: null }
-  const composit = await Composit.findByPk(compositId);
-  const component = await Component.findByPk(componentId);
-  // if composit object is not returned -> give error
-  const subComponent = composit ? (await composit.createComponent({ name: subComponentName })).toJSON() : null;
-  // using Sequelize special function to accees the associated Children of Component: https://sequelize.org/docs/v6/core-concepts/assocs/#special-methodsmixins-added-to-instances
-  const newComponent = await component.addChildren(subComponent.id);
-  console.log("addSubComponent subComponent: ", subComponent);
-  console.log("addSubComponent newComponent: ", newComponent);
-  response.subComponent = subComponent;
-  return response;
-});
-
-ipcMain.handle('deleteComponent', async (event, arg) => {
-  console.log("deleteComponent received")
-  const { componentId  } = arg.data;
-  const response = { isComponentDeleted: false, msg: "", error: null }
-  const component = await Component.findByPk(componentId);
-  const componentIdsToDelete = await getComponentIds(component);
-  const componentIdsToDeleteFlat = componentIdsToDelete.flat(Infinity);
-  console.log('deleteComponent, componentIdsToDeleteFlat: ', componentIdsToDeleteFlat);
-  const deletedRows = await Component.destroy({where: {id: componentIdsToDeleteFlat}})
-  const isComponentDeleted = deletedRows ? true : false;
-  console.log("isComponentDeleted: ", isComponentDeleted);
-  response.isComponentDeleted = isComponentDeleted;
-  console.log("response: ", response);
-
-  return response;
-});
-
-const getComponentIds = async (component) => {
-  const componentChildren = await component.getChildren();
-  const componentChildrenIds = [];
-  if (componentChildren.length > 0){
-    const componentChildrenIdsResponse = await Promise.all(componentChildren.map(async (componentChild) => {
-      return (await getComponentIds(componentChild));
-    }))
-    componentChildrenIds.push(...componentChildrenIdsResponse)
-  }
-  return [component?.id, ...componentChildrenIds];
-}
-
-ipcMain.handle('renameComponent', async (event, arg) => {
-  console.log("renameComponent received arg.data: ", arg.data)
-  const { componentId, newComponentName  } = arg.data;
-  const response = { isComponentUpdated: false, msg: "", error: null }
-  const component = await Component.findByPk(componentId);
-  if (component){
-    component.name = newComponentName;
-    await component.save();
-    response.isComponentUpdated = true;
-  }else{
-    response.msg = "Provided Component doesn't exist";
-    response.error = true;
-  }
-  console.log("response: ", response);
-
-  return response;
-});
-
 ipcMain.on('signin', async (event, arg) => {
   const { username, password } = arg.data;
   console.log(arg.data);
@@ -324,6 +134,375 @@ ipcMain.on('signin', async (event, arg) => {
       });
     }
   }
+});
+
+// Composit & Component Handling
+ipcMain.handle('addComposit', async (event, arg) => {
+  console.log("addComposit received arg: ", arg)
+  const { compositName } = arg.data;
+  const response = { composit: null, msg: "", error: false }
+  // const composit = (await Composit.create({ name: compositName }))?.toJSON();
+  try {
+    // Composit.create({ name: compositName }).then((composit) => {
+    //   const compositToJson = composit?.toJSON();
+    //   compositToJson.components = [];
+    //   response.composit = compositToJson;
+    //   console.log("addComposit response created: ", response);
+    if (validator.isEmpty(compositName)) {
+      throw new Error(`Composit name needs to contain characters(letters, numbers, etc).`)
+    }
+
+    const compositAlreadyPresent = await Composit.count({ where: { name: compositName } });
+    if (compositAlreadyPresent) {
+      throw new Error(`Composit with name - ${compositName} is already present. Provide another name.`)
+    }
+    const composit = (await Composit.create({ name: compositName }))?.toJSON();
+    composit.components = [];
+    console.log("addComposit composit: ", composit);
+    response.composit = composit;
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+    console.log("addComposit error: ", error);
+  }
+  console.log("addComposit response outside: ", response);
+  return response;
+  // composit.components = [];
+  // console.log("addComposit composit: ", composit);
+  // response.composit = composit;
+  // console.log("response: ", response);
+
+
+});
+
+ipcMain.handle('deleteComposit', async (event, arg) => {
+  console.log("deleteComposit received")
+  const { compositId } = arg.data;
+  const response = { isCompositDeleted: false, msg: "", error: null }
+
+  try {
+    if (!(Number.isInteger(compositId))) {
+      throw new Error(`Provide correct Composit value`)
+    }
+    const compositToDelete = await Composit.findByPk(compositId);
+    if (!compositToDelete) {
+      throw new Error(`Provided Composit doesn't exist`)
+    }
+    const deletedRows = await compositToDelete?.destroy();
+    const isCompositDeleted = deletedRows ? true : false;
+    console.log("isCompositDeleted: ", isCompositDeleted);
+    response.isCompositDeleted = isCompositDeleted;
+    console.log("response: ", response);
+
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("deleteComposit error: ", error);
+  }
+
+  return response;
+});
+
+ipcMain.handle('renameComposit', async (event, arg) => {
+  console.log("renameComposit received")
+  const { compositId, newCompositName } = arg.data;
+  const response = { isCompositUpdated: false, msg: "", error: null }
+
+  try {
+
+    if (!(Number.isInteger(compositId))) {
+      throw new Error(`Provide correct Composit value`)
+    } else if (validator.isEmpty(newCompositName)) {
+      throw new Error(`New Composit name needs to contain characters(letters, numbers, etc).`)
+    }
+
+    const composit = await Composit.findByPk(compositId);
+    if (composit) {
+      composit.name = newCompositName;
+      await composit.save();
+      response.isCompositUpdated = true;
+    } else {
+      throw new Error(`Provided Composit doesn't exist`)
+    }
+    console.log("response: ", response);
+
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("renameComposit error: ", error);
+  }
+
+  return response;
+});
+
+ipcMain.handle('getComposits', async (event) => {
+  const response = { composits: null, msg: "", error: null }
+  // const composits = (await Composit.findAll({ include: Component })).map(composit => composit?.toJSON());
+  // https://sequelize.org/docs/v7/querying/select-in-depth/#filtering-associated-models
+
+  // const compositsWithJson = (await Composit.findAll({
+  //   include: [
+  //     {
+  //       model: Component,
+  //       required: false, // added to include Composits which don't have a Component associated to them
+  //       where: {
+  //         main_component: true,
+  //       },
+  //     },
+  //   ],
+  // })).map(composit => composit?.toJSON());
+
+  try {
+    const composits = await Composit.findAll({
+      include: [
+        {
+          model: Component,
+          required: false, // added to include Composits which don't have a Component associated to them
+          where: {
+            main_component: true,
+          },
+        },
+      ],
+    });
+
+    const compositsComponentsSubcomponents = await Promise.all(composits.map(async (composit) => {
+      // const compositComponents = await composit.getComponents();
+      console.log("getComposits each composit: ", composit);
+      const compositComponentsToJson = await Promise.all(await composit.components?.map(async (component) => {
+        const getCompWithSubComp = await getComponentSubcomponents(component);
+        console.log("getComposits getCompWithSubComp: ", getCompWithSubComp);
+        return getCompWithSubComp;
+      }));
+      console.log("getComposits compositComponentsToJson: ", compositComponentsToJson);
+      const compositToJson = composit?.toJSON();
+      compositToJson.components = compositComponentsToJson;
+      return compositToJson;
+    }));
+    console.log("getComposits compositsComponentsSubcomponents: ", JSON.stringify(compositsComponentsSubcomponents));
+    console.log("getComposits composits: ", composits);
+    response.composits = compositsComponentsSubcomponents;
+
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("getComposits error: ", error);
+
+  }
+
+  return response;
+});
+
+const getComponentSubcomponents = async (componentObj) => {
+  console.log('updateComponentWithNewSubcomponent, componentObj: ', componentObj);
+  const componentSubComponents = await componentObj.getChildren();
+  console.log('updateComponentWithNewSubcomponent, componentSubComponents: ', componentSubComponents);
+  let componentSubComponentsToJSON = []
+  if (componentSubComponents?.length > 0) {
+    componentSubComponentsToJSON = await Promise.all(componentSubComponents.map(async (component) => { // have Promise.all because getComponentSubcomponents is async and is called recursively
+      const resp = await getComponentSubcomponents(component); // await not necessary, but kept it to point that getComponentSubcomponents is async (if I understand it correctly)
+      console.log('updateComponentWithNewSubcomponent, resp: ', resp);
+      return resp;
+    }));
+  }
+  componentObj.dataValues.subcomponents = componentSubComponentsToJSON;
+  console.log('updateComponentWithNewSubcomponent, componentObj.dataValues.subcomponents: ', componentObj.dataValues.subcomponents);
+  const componentObjToJson = componentObj.toJSON();
+  console.log('updateComponentWithNewSubcomponent, componentObjToJson: ', componentObjToJson);
+  return componentObjToJson;
+}
+
+ipcMain.handle('addComponent', async (event, arg) => {
+  console.log("addComponent received")
+  console.log("addComponent arg.data: ", arg.data);
+  const { componentName, compositId } = arg.data;
+
+  const response = { component: null, msg: "", error: null }
+  try {
+
+    if (!(Number.isInteger(compositId))) {
+      throw new Error(`Provide correct Composit value`)
+    } else if (validator.isEmpty(componentName)) {
+      throw new Error(`Component name needs to contain characters(letters, numbers, etc).`)
+    }
+
+    const composit = await Composit.findByPk(compositId);
+    // Sequelize provides createComponent method on composit object because we defined 
+    //    association between Composit and Component tables 
+    //    (check here: https://sequelize.org/docs/v6/core-concepts/assocs/#special-methodsmixins-added-to-instances)
+    const component = composit ? (await composit.createComponent({ name: componentName, main_component: true })).toJSON() : null;
+    console.log("addComponent composit: ", composit);
+    console.log("addComponent component: ", component);
+    response.component = component;
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("addComponent error: ", error);
+  }
+
+  return response;
+});
+
+ipcMain.handle('addSubComponent', async (event, arg) => {
+  console.log("addSubComponent arg.data: ", arg.data);
+  const { subComponentName, componentId, compositId } = arg.data;
+  console.log("addSubComponent componentName: ", componentId);
+  console.log("addSubComponent subComponentName: ", subComponentName);
+  const response = { subComponent: null, composit: null, msg: "", error: null }
+
+  try {
+
+    if (!(Number.isInteger(compositId))) {
+      throw new Error(`Provide correct Composit value`)
+    } else if (!(Number.isInteger(componentId))) {
+      throw new Error(`Provide correct Component value`)
+    } else if (validator.isEmpty(subComponentName)) {
+      throw new Error(`SubComponent name needs to contain characters(letters, numbers, etc).`)
+    }
+
+    const composit = await Composit.findByPk(compositId);
+    const component = await Component.findByPk(componentId);
+    // if composit object is not returned -> give error
+    const subComponent = composit ? (await composit.createComponent({ name: subComponentName })).toJSON() : null;
+    // using Sequelize special function to accees the associated Children of Component: https://sequelize.org/docs/v6/core-concepts/assocs/#special-methodsmixins-added-to-instances
+    const newComponent = await component.addChildren(subComponent.id);
+    console.log("addSubComponent subComponent: ", subComponent);
+    console.log("addSubComponent newComponent: ", newComponent);
+    response.subComponent = subComponent;
+
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("addSubComponent error: ", error);
+  }
+
+  return response;
+});
+
+ipcMain.handle('deleteComponent', async (event, arg) => {
+  console.log("deleteComponent received")
+  const { componentId } = arg.data;
+  const response = { isComponentDeleted: false, msg: "", error: null }
+
+  try {
+    if (!(Number.isInteger(componentId))) {
+      throw new Error(`Provide correct Component value`)
+    }
+    const component = await Component.findByPk(componentId);
+    const componentIdsToDelete = await getComponentIds(component);
+    const componentIdsToDeleteFlat = componentIdsToDelete.flat(Infinity);
+    console.log('deleteComponent, componentIdsToDeleteFlat: ', componentIdsToDeleteFlat);
+    const deletedRows = await Component.destroy({ where: { id: componentIdsToDeleteFlat } })
+    const isComponentDeleted = deletedRows ? true : false;
+    console.log("isComponentDeleted: ", isComponentDeleted);
+    response.isComponentDeleted = isComponentDeleted;
+
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("deleteComponent error: ", error);
+  }
+
+  console.log("response: ", response);
+  return response;
+});
+
+const getComponentIds = async (component) => {
+  const componentChildren = await component.getChildren();
+  const componentChildrenIds = [];
+  if (componentChildren.length > 0) {
+    const componentChildrenIdsResponse = await Promise.all(componentChildren.map(async (componentChild) => {
+      return (await getComponentIds(componentChild));
+    }))
+    componentChildrenIds.push(...componentChildrenIdsResponse)
+  }
+  return [component?.id, ...componentChildrenIds];
+}
+
+ipcMain.handle('renameComponent', async (event, arg) => {
+  console.log("renameComponent received arg.data: ", arg.data)
+  const { componentId, newComponentName } = arg.data;
+  const response = { isComponentUpdated: false, msg: "", error: null }
+  try {
+
+    if (!(Number.isInteger(componentId))) {
+      throw new Error(`Provide correct Component value`)
+    } else if (validator.isEmpty(newComponentName)) {
+      throw new Error(`New Component name needs to contain characters(letters, numbers, etc).`)
+    }
+
+    const component = await Component.findByPk(componentId);
+    if (component) {
+      component.name = newComponentName;
+      await component.save();
+      response.isComponentUpdated = true;
+    } else {
+      response.msg = "Provided Component doesn't exist";
+      response.error = true;
+    }
+
+  } catch (error) {
+    response.error = true;
+    if (error?.message) {
+      response.msg = error?.message;
+    } else if (error?.errors) {
+      response.msg = error.errors.map(err => err.message).join(" AND ");
+    } else {
+      response.msg = "Server error occured.";
+    }
+
+    console.log("renameComponent error: ", error);
+  }
+
+  console.log("response: ", response);
+  return response;
 });
 
 if (process.env.NODE_ENV === 'production') {
