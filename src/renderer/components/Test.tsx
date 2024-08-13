@@ -259,7 +259,7 @@ export default function Test() {
       const updatedComposits = composits.map((compositObj) => {
 
 
-        if (compositObj?.name == composit?.name) {
+        if (compositObj?.id == composit?.id) {
           compositObj.components = composit.components?.map((componentObj) => {
             return renameComponentRecurive(componentObj, componentToRename, newComponentName)
           });
@@ -395,7 +395,7 @@ export default function Test() {
                 alignItems: 'center',
               }}
             >
-              {((currentComposit?.name == composit?.name) && renameCompositPressed) ?
+              {((currentComposit?.id == composit?.id) && renameCompositPressed) ?
                 <InputBox textFieldId={"rename-composit"} textFieldLabel={"Composit"} textFieldName={"composit"} input={compositInput} handleInputChange={handleCompositInputChange} handleInputCancel={handleCompositInputCancel} handleInputSubmit={() => handleRenameCompositSubmit(currentComposit, compositInput)} />
                 :
                 <Stack direction="row" alignItems="center" gap={1}>
@@ -422,7 +422,7 @@ export default function Test() {
                 />
               ))}
 
-              {addComponentPressed && (currentComposit?.name == composit?.name) && (
+              {addComponentPressed && (currentComposit?.id == composit?.id) && (
                 <InputBox textFieldId={"new-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleComponentInputSubmit} />
 
 
@@ -475,7 +475,7 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
           key={component.id}
           sx={{ padding: 0 }}
         >
-          {((currentComponent?.name == component?.name) && renameComponentPressed) ?
+          {((currentComponent?.id == component?.id) && renameComponentPressed) ?
             <InputBox textFieldId={"rename-component"} textFieldLabel={"Component"} textFieldName={"component"} input={componentInput} handleInputChange={handleComponentInputChange} handleInputCancel={handleComponentInputCancel} handleInputSubmit={handleRenameComponentSubmitCb} />
             :
             <>
@@ -506,7 +506,7 @@ function ListOfComponents({ composit, component, deleteComponentCb, renameCompon
 
           </>
         ))}
-        {addSubComponentPressed && (currentComponent?.name == component?.name) && (
+        {addSubComponentPressed && (currentComponent?.id == component?.id) && (
           <>
             <InputBox textFieldId={'new-subComponent'} textFieldLabel={"SubComponent"} textFieldName={"subcomponent"} input={subComponentInput} handleInputChange={handleSubComponentInputChange} handleInputCancel={handleSubComponentInputCancel} handleInputSubmit={() => handleSubComponentInputSubmit(composit, component, subComponentInput)} />
           </>
